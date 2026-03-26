@@ -53,7 +53,7 @@ jobs:
         run: ./vendor/bin/pest
 
   all-tests-passed:
-    name: Run Tests
+    name: All Tests Passed
     needs: test
     runs-on: ubuntu-latest
     if: always()
