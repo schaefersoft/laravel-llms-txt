@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.0.1...v1.0.2) (2026-03-26)
+
+
+### Bug Fixes
+
+* **core:** build errors ([51b7ed6](https://github.com/schaefersoft/laravel-llms-txt/commit/51b7ed6d58c78d08b8b37557bcb61f88b1617b8f))
+
 ## [1.0.1](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.0.0...v1.0.1) (2026-03-26)
 
 
