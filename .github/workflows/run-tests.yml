@@ -54,12 +54,14 @@ jobs:
 
   all-tests-passed:
     name: All Tests Passed
-    needs: test
+    needs: [ test ]
     runs-on: ubuntu-latest
-    if: always()
+    if: ${{ always() }}
     steps:
       - name: Check matrix result
+        env:
+          RESULT: ${{ needs.test.result }}
         run: |
-          if [ "${{ needs.test.result }}" != "success" ]; then
+          if [ "$RESULT" != "success" ]; then
             exit 1
           fi
