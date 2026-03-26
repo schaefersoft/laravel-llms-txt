@@ -6,7 +6,6 @@ namespace SchaeferSoft\LaravelLlmsTxt\Commands;
 
 use Illuminate\Console\Command;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxtRegistry;
 
 /**
  * Artisan command to generate static llms.txt and llms-full.txt files.
@@ -14,6 +13,10 @@ use SchaeferSoft\LaravelLlmsTxt\LlmsTxtRegistry;
  * Writes the rendered output to the configured filesystem disk (default: public).
  * Supports an optional `--full` flag to also generate the extended llms-full.txt,
  * and a `--locale` option to generate locale-specific files.
+ *
+ * When a locale is given, `app()->setLocale()` is called before resolving the
+ * LlmsTxt instance so that any Closures in title/description/section names are
+ * evaluated with the correct locale active.
  *
  * @example
  * ```bash
@@ -85,11 +88,18 @@ class GenerateLlmsTxtCommand extends Command
     /**
      * Generate llms.txt (and optionally llms-full.txt) for the given locale.
      *
+     * Sets the application locale before resolving the LlmsTxt instance so that
+     * Closure-based titles and descriptions are translated correctly.
+     *
      * @param  string|null  $locale  The locale to generate for, or null for the default.
      */
     protected function generateForLocale(?string $locale): int
     {
-        $llmsTxt = $this->resolveLlmsTxt();
+        if ($locale !== null) {
+            app()->setLocale($locale);
+        }
+
+        $llmsTxt = $this->resolve();
 
         if ($locale !== null) {
             $llmsTxt->locale($locale);
@@ -137,14 +147,8 @@ class GenerateLlmsTxtCommand extends Command
      * Uses the bound instance if one has been registered, otherwise
      * falls back to a fresh empty instance.
      */
-    protected function resolveLlmsTxt(): LlmsTxt
+    protected function resolve(): LlmsTxt
     {
-        $locale = app()->getLocale();
-
-        if (LlmsTxtRegistry::hasLocale($locale)) {
-            return LlmsTxtRegistry::resolve($locale);
-        }
-
         if (app()->bound(LlmsTxt::class)) {
             return app(LlmsTxt::class);
         }

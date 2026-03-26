@@ -9,15 +9,7 @@ it('creates a section with a name', function () {
     $section = Section::create('Services');
 
     expect($section->getName())->toBe('Services')
-        ->and($section->getLocale())->toBeNull()
         ->and($section->getEntries())->toHaveCount(0);
-});
-
-it('creates a section with a locale', function () {
-    $section = Section::create('Leistungen', 'de');
-
-    expect($section->getName())->toBe('Leistungen')
-        ->and($section->getLocale())->toBe('de');
 });
 
 it('adds entries to a section', function () {
@@ -61,8 +53,35 @@ it('supports fluent name setter', function () {
     expect($section->getName())->toBe('New Name');
 });
 
-it('supports fluent locale setter', function () {
-    $section = Section::create('Leistungen')->locale('de');
+it('accepts a closure for the section name', function () {
+    $section = Section::create(fn () => 'Dynamic Services');
 
-    expect($section->getLocale())->toBe('de');
+    expect($section->getName())->toBe('Dynamic Services')
+        ->and($section->render())->toBe('## Dynamic Services');
+});
+
+it('evaluates name closure at render time', function () {
+    $locale = 'en';
+
+    $section = Section::create(function () use (&$locale) {
+        return $locale === 'de' ? 'Leistungen' : 'Services';
+    });
+
+    expect($section->render())->toContain('## Services');
+
+    $locale = 'de';
+
+    expect($section->render())->toContain('## Leistungen');
+});
+
+it('getName evaluates closures', function () {
+    $section = Section::create(fn () => 'Computed Name');
+
+    expect($section->getName())->toBe('Computed Name');
+});
+
+it('fluent name setter accepts a closure', function () {
+    $section = Section::create('Old')->name(fn () => 'New Name From Closure');
+
+    expect($section->getName())->toBe('New Name From Closure');
 });

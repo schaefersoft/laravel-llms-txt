@@ -4,75 +4,69 @@ declare(strict_types=1);
 
 namespace SchaeferSoft\LaravelLlmsTxt;
 
+use Closure;
+
 /**
  * Represents a single link entry within a section of an llms.txt document.
  *
- * An entry consists of a title, a URL, an optional description, and an
- * optional locale for multilingual site support.
+ * An entry consists of a title, a URL, and an optional description.
+ * All three accept either a plain string or a Closure that returns a string.
+ * Closures are evaluated lazily at render time — see the Advanced section of
+ * the README for when this is useful.
  */
 class Entry
 {
     /**
      * The display title of the entry.
      */
-    protected string $title;
+    protected string|Closure $title;
 
     /**
      * The URL this entry points to.
      */
-    protected string $url;
+    protected string|Closure $url;
 
     /**
      * An optional description for the entry.
      */
-    protected ?string $description;
-
-    /**
-     * The locale associated with this entry (e.g. 'de', 'en').
-     */
-    protected ?string $locale;
+    protected string|Closure|null $description;
 
     /**
      * Create a new Entry instance.
      *
-     * @param  string  $title  The display title of the entry.
-     * @param  string  $url  The URL this entry points to.
-     * @param  string|null  $description  An optional description.
-     * @param  string|null  $locale  An optional locale identifier.
+     * @param  string|Closure  $title  The display title of the entry.
+     * @param  string|Closure  $url  The URL this entry points to.
+     * @param  string|Closure|null  $description  An optional description.
      */
     public function __construct(
-        string $title,
-        string $url,
-        ?string $description = null,
-        ?string $locale = null,
+        string|Closure $title,
+        string|Closure $url,
+        string|Closure|null $description = null,
     ) {
         $this->title = $title;
         $this->url = $url;
         $this->description = $description;
-        $this->locale = $locale;
     }
 
     /**
      * Static factory method for fluent construction.
      *
-     * @param  string  $title  The display title of the entry.
-     * @param  string  $url  The URL this entry points to.
-     * @param  string|null  $description  An optional description.
-     * @param  string|null  $locale  An optional locale identifier.
+     * @param  string|Closure  $title  The display title of the entry.
+     * @param  string|Closure  $url  The URL this entry points to.
+     * @param  string|Closure|null  $description  An optional description.
      */
     public static function create(
-        string $title,
-        string $url,
-        ?string $description = null,
-        ?string $locale = null,
+        string|Closure $title,
+        string|Closure $url,
+        string|Closure|null $description = null,
     ): static {
-        return new static($title, $url, $description, $locale);
+        return new static($title, $url, $description);
     }
 
     /**
      * Set the display title.
      */
-    public function title(string $title): static
+    public function title(string|Closure $title): static
     {
         $this->title = $title;
 
@@ -82,7 +76,7 @@ class Entry
     /**
      * Set the URL.
      */
-    public function url(string $url): static
+    public function url(string|Closure $url): static
     {
         $this->url = $url;
 
@@ -92,7 +86,7 @@ class Entry
     /**
      * Set the description.
      */
-    public function description(?string $description): static
+    public function description(string|Closure|null $description): static
     {
         $this->description = $description;
 
@@ -100,45 +94,31 @@ class Entry
     }
 
     /**
-     * Set the locale for this entry.
-     */
-    public function locale(?string $locale): static
-    {
-        $this->locale = $locale;
-
-        return $this;
-    }
-
-    /**
-     * Get the display title.
+     * Get the display title, evaluating any Closure.
      */
     public function getTitle(): string
     {
-        return $this->title;
+        return $this->resolveValue($this->title);
     }
 
     /**
-     * Get the URL.
+     * Get the URL, evaluating any Closure.
      */
     public function getUrl(): string
     {
-        return $this->url;
+        return $this->resolveValue($this->url);
     }
 
     /**
-     * Get the description.
+     * Get the description, evaluating any Closure.
      */
     public function getDescription(): ?string
     {
-        return $this->description;
-    }
+        if ($this->description === null) {
+            return null;
+        }
 
-    /**
-     * Get the locale.
-     */
-    public function getLocale(): ?string
-    {
-        return $this->locale;
+        return $this->resolveValue($this->description);
     }
 
     /**
@@ -148,10 +128,17 @@ class Entry
      */
     public function render(): string
     {
-        $line = "- [{$this->title}]({$this->url})";
+        $title = $this->resolveValue($this->title);
+        $url = $this->resolveValue($this->url);
 
-        if ($this->description !== null && $this->description !== '') {
-            $line .= ": {$this->description}";
+        $line = "- [{$title}]({$url})";
+
+        if ($this->description !== null) {
+            $description = $this->resolveValue($this->description);
+
+            if ($description !== '') {
+                $line .= ": {$description}";
+            }
         }
 
         return $line;
@@ -163,5 +150,13 @@ class Entry
     public function __toString(): string
     {
         return $this->render();
+    }
+
+    /**
+     * Resolve a value that may be a plain string or a Closure.
+     */
+    private function resolveValue(string|Closure $value): string
+    {
+        return $value instanceof Closure ? ($value)() : $value;
     }
 }

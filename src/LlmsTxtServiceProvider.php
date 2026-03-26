@@ -11,9 +11,12 @@ use SchaeferSoft\LaravelLlmsTxt\Http\Controllers\LlmsTxtController;
 /**
  * Service provider for the laravel-llms-txt package.
  *
- * Registers dynamic routes for serving llms.txt and llms-full.txt,
+ * Registers controller-based routes for serving llms.txt and llms-full.txt,
  * publishes the package configuration file, and registers the Artisan
  * command for static file generation.
+ *
+ * Routes are controller-based (not closures) so that `php artisan route:cache`
+ * works without issues.
  */
 class LlmsTxtServiceProvider extends ServiceProvider
 {
@@ -77,19 +80,18 @@ class LlmsTxtServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register locale-prefixed route variants.
+     * Register locale-prefixed route variants using a single parameterised route.
      *
-     * For each locale defined in `llms-txt.locales`, registers:
+     * Registers:
      * - `/{locale}/llms.txt`
      * - `/{locale}/llms-full.txt`
+     *
+     * The `{locale}` segment is constrained to the values in `llms-txt.locales`,
+     * so any unknown locale segment results in a 404.
      */
     protected function registerLocalizedRoutes(mixed $router): void
     {
         $locales = config('llms-txt.locales', []);
-
-        if (empty($locales)) {
-            return;
-        }
 
         $router->get('/{locale}/llms.txt', [LlmsTxtController::class, 'localizedIndex'])
             ->whereIn('locale', $locales)
