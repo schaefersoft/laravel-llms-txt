@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.0.0...v1.0.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* **core:** fix http route registration for locales ([1f0fab9](https://github.com/schaefersoft/laravel-llms-txt/commit/1f0fab93f28d589d1f07d167752c1cd96a790667))
+* **core:** fix http route registration for route:caching ([ba92bd9](https://github.com/schaefersoft/laravel-llms-txt/commit/ba92bd9d8465e2634142a2f8cea953163dc5bc77))
+
 ## 1.0.0 (2026-03-26)
 
 
