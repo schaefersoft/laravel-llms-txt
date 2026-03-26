@@ -85,16 +85,18 @@ class LlmsTxtServiceProvider extends ServiceProvider
      */
     protected function registerLocalizedRoutes(mixed $router): void
     {
-        foreach (config('llms-txt.locales', []) as $locale) {
-            $router->get(
-                "/{$locale}/llms.txt",
-                [LlmsTxtController::class, 'localizedIndex'],
-            )->name("llms-txt.{$locale}.index");
+        $locales = config('llms-txt.locales', []);
 
-            $router->get(
-                "/{$locale}/llms-full.txt",
-                [LlmsTxtController::class, 'localizedFull'],
-            )->name("llms-txt.{$locale}.full");
+        if (empty($locales)) {
+            return;
         }
+
+        $router->get('/{locale}/llms.txt', [LlmsTxtController::class, 'localizedIndex'])
+            ->whereIn('locale', $locales)
+            ->name('llms-txt.localized.index');
+
+        $router->get('/{locale}/llms-full.txt', [LlmsTxtController::class, 'localizedFull'])
+            ->whereIn('locale', $locales)
+            ->name('llms-txt.localized.full');
     }
 }
