@@ -2,7 +2,13 @@
     "name": "schaefersoft/laravel-llms-txt",
     "version": "1.0.0",
     "description": "Automatically generate llms.txt and llms-full.txt for Laravel applications",
-    "keywords": ["laravel", "llms", "llms.txt", "ai", "schaefersoft"],
+    "keywords": [
+        "laravel",
+        "llms",
+        "llms.txt",
+        "ai",
+        "schaefersoft"
+    ],
     "homepage": "https://github.com/schaefersoft/laravel-llms-txt",
     "license": "MIT",
     "authors": [
