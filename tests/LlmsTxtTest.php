@@ -69,7 +69,71 @@ it('casts to string via __toString', function () {
 });
 
 // ---------------------------------------------------------------------------
-// Fluent setters
+// Closure-based values
+// ---------------------------------------------------------------------------
+
+it('renders title from a closure', function () {
+    $output = LlmsTxt::create()->title(fn () => 'Closure Title')->render();
+
+    expect($output)->toBe("# Closure Title\n");
+});
+
+it('renders description from a closure', function () {
+    $output = LlmsTxt::create()
+        ->title('SchaeferSoft')
+        ->description(fn () => 'Closure description')
+        ->render();
+
+    expect($output)->toBe("# SchaeferSoft\n\n> Closure description\n");
+});
+
+it('renders correctly with mixed string and closure values', function () {
+    $output = LlmsTxt::create()
+        ->title(fn () => 'Closure Title')
+        ->description('Plain description')
+        ->addSection(
+            Section::create(fn () => 'Closure Section')
+                ->addEntry(Entry::create(
+                    fn () => 'Closure Entry',
+                    'https://schaefersoft.ch',
+                    fn () => 'Closure desc',
+                ))
+        )
+        ->render();
+
+    expect($output)
+        ->toContain('# Closure Title')
+        ->toContain('> Plain description')
+        ->toContain('## Closure Section')
+        ->toContain('- [Closure Entry](https://schaefersoft.ch): Closure desc');
+});
+
+it('evaluates closures with the current locale at render time', function () {
+    $llms = LlmsTxt::create()
+        ->title(fn () => app()->getLocale() === 'de' ? 'SchaeferSoft DE' : 'SchaeferSoft EN')
+        ->addSection(
+            Section::create(fn () => app()->getLocale() === 'de' ? 'Leistungen' : 'Services')
+                ->addEntry(Entry::create(
+                    fn () => app()->getLocale() === 'de' ? 'Webentwicklung' : 'Web Development',
+                    'https://schaefersoft.ch/services/web',
+                ))
+        );
+
+    app()->setLocale('de');
+    expect($llms->render())
+        ->toContain('# SchaeferSoft DE')
+        ->toContain('## Leistungen')
+        ->toContain('- [Webentwicklung]');
+
+    app()->setLocale('en');
+    expect($llms->render())
+        ->toContain('# SchaeferSoft EN')
+        ->toContain('## Services')
+        ->toContain('- [Web Development]');
+});
+
+// ---------------------------------------------------------------------------
+// Fluent setters / getters
 // ---------------------------------------------------------------------------
 
 it('exposes fluent getters', function () {
@@ -81,6 +145,15 @@ it('exposes fluent getters', function () {
     expect($llms->getTitle())->toBe('My Site')
         ->and($llms->getDescription())->toBe('A description')
         ->and($llms->getLocale())->toBe('de');
+});
+
+it('getters evaluate closures', function () {
+    $llms = LlmsTxt::create()
+        ->title(fn () => 'Closure Title')
+        ->description(fn () => 'Closure Description');
+
+    expect($llms->getTitle())->toBe('Closure Title')
+        ->and($llms->getDescription())->toBe('Closure Description');
 });
 
 it('collects sections', function () {

@@ -58,3 +58,48 @@ it('renders an empty description as no description', function () {
 
     expect($entry->render())->toBe('- [Home](https://schaefersoft.ch)');
 });
+
+it('renders title from a closure', function () {
+    $entry = Entry::create(fn () => 'Closure Title', 'https://schaefersoft.ch');
+
+    expect($entry->render())->toBe('- [Closure Title](https://schaefersoft.ch)');
+});
+
+it('renders url from a closure', function () {
+    $entry = Entry::create('Home', fn () => 'https://schaefersoft.ch');
+
+    expect($entry->render())->toBe('- [Home](https://schaefersoft.ch)');
+});
+
+it('renders description from a closure', function () {
+    $entry = Entry::create('Home', 'https://schaefersoft.ch', fn () => 'Closure description');
+
+    expect($entry->render())->toBe('- [Home](https://schaefersoft.ch): Closure description');
+});
+
+it('evaluates closures at render time respecting current locale', function () {
+    app()->setLocale('de');
+
+    $entry = Entry::create(
+        fn () => app()->getLocale() === 'de' ? 'Webentwicklung' : 'Web Development',
+        'https://schaefersoft.ch/services/web',
+    );
+
+    expect($entry->render())->toBe('- [Webentwicklung](https://schaefersoft.ch/services/web)');
+
+    app()->setLocale('en');
+
+    expect($entry->render())->toBe('- [Web Development](https://schaefersoft.ch/services/web)');
+});
+
+it('getters evaluate closures', function () {
+    $entry = Entry::create(
+        fn () => 'Closure Title',
+        fn () => 'https://closure.url',
+        fn () => 'Closure description',
+    );
+
+    expect($entry->getTitle())->toBe('Closure Title')
+        ->and($entry->getUrl())->toBe('https://closure.url')
+        ->and($entry->getDescription())->toBe('Closure description');
+});

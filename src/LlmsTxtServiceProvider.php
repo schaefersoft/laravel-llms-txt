@@ -4,26 +4,27 @@ declare(strict_types=1);
 
 namespace SchaeferSoft\LaravelLlmsTxt;
 
-use Illuminate\Http\Response;
-use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use SchaeferSoft\LaravelLlmsTxt\Commands\GenerateLlmsTxtCommand;
+use SchaeferSoft\LaravelLlmsTxt\Http\Controllers\LlmsTxtController;
 
 /**
  * Service provider for the laravel-llms-txt package.
  *
- * Registers dynamic routes for serving llms.txt and llms-full.txt,
+ * Registers controller-based routes for serving llms.txt and llms-full.txt,
  * publishes the package configuration file, and registers the Artisan
  * command for static file generation.
+ *
+ * Routes are controller-based (never closure-based) so they are compatible
+ * with `php artisan route:cache`.
+ *
+ * The controller reads app()->getLocale(), which is set by whatever
+ * localization middleware the application uses (mcamara, spatie, custom, etc.)
+ * before the request reaches the controller. No localization package
+ * integration is needed.
  */
 class LlmsTxtServiceProvider extends ServiceProvider
 {
-    /**
-     * Bootstrap package services.
-     *
-     * Registers routes (when enabled via config) and makes the config
-     * file publishable via `php artisan vendor:publish`.
-     */
     public function boot(): void
     {
         $this->publishes([
@@ -41,9 +42,6 @@ class LlmsTxtServiceProvider extends ServiceProvider
         }
     }
 
-    /**
-     * Register package bindings in the service container.
-     */
     public function register(): void
     {
         $this->mergeConfigFrom(
@@ -53,28 +51,26 @@ class LlmsTxtServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register the dynamic routes for llms.txt and llms-full.txt.
+     * Register the default and (optionally) locale-prefixed routes.
      *
-     * When `localize_routes` is enabled, locale-prefixed variants are
-     * also registered (e.g. `/de/llms.txt`, `/en/llms.txt`).
+     * All routes point to controller actions so they survive route:cache.
+     * When localize_routes is enabled, one `/{locale}/llms.txt` route is
+     * registered per locale listed in `llms-txt.locales`, constrained via
+     * whereIn so unknown locale segments fall through to a 404.
      */
     protected function registerRoutes(): void
     {
         $router = $this->app['router'];
 
-        $llmsRoute = config('llms-txt.llms_txt_route', '/llms.txt');
-        $llmsFullRoute = config('llms-txt.llms_full_txt_route', '/llms-full.txt');
+        $router->get(
+            config('llms-txt.llms_txt_route', '/llms.txt'),
+            [LlmsTxtController::class, 'index'],
+        )->name('llms-txt.index');
 
-        $router->get($llmsRoute, function () {
-            return $this->buildTextResponse($this->resolveLlmsTxt()->getCached('llms-txt'));
-        })->name('llms-txt.index');
-
-        $router->get($llmsFullRoute, function () {
-            $llmsTxt = $this->resolveLlmsTxt();
-            $content = $llmsTxt->renderFull();
-
-            return $this->buildTextResponse($content);
-        })->name('llms-txt.full');
+        $router->get(
+            config('llms-txt.llms_full_txt_route', '/llms-full.txt'),
+            [LlmsTxtController::class, 'full'],
+        )->name('llms-txt.full');
 
         if (config('llms-txt.localize_routes', false)) {
             $this->registerLocalizedRoutes($router);
@@ -82,67 +78,27 @@ class LlmsTxtServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register locale-prefixed route variants.
+     * Register `/{locale}/llms.txt` and `/{locale}/llms-full.txt` routes.
      *
-     * For each locale defined in `llms-txt.locales`, registers:
-     * - `/{locale}/llms.txt`
-     * - `/{locale}/llms-full.txt`
-     *
-     * @param  Router  $router
+     * The {locale} segment is constrained to the values in `llms-txt.locales`.
+     * The controller sets app()->setLocale() before rendering so that all
+     * Closures in your LlmsTxt binding evaluate with the correct locale.
+     * Unknown locale segments fall through to a 404.
      */
     protected function registerLocalizedRoutes(mixed $router): void
     {
         $locales = config('llms-txt.locales', []);
 
-        foreach ($locales as $locale) {
-            $router->get("/{$locale}/llms.txt", function () use ($locale) {
-                $this->app->setLocale($locale);
-                $llmsTxt = $this->resolveLlmsTxt();
-                $content = $llmsTxt->getCached("llms-txt.{$locale}");
-
-                return $this->buildTextResponse($content);
-            })->name("llms-txt.{$locale}.index");
-
-            $router->get("/{$locale}/llms-full.txt", function () use ($locale) {
-                $this->app->setLocale($locale);
-                $llmsTxt = $this->resolveLlmsTxt();
-                $content = $llmsTxt->renderFull();
-
-                return $this->buildTextResponse($content);
-            })->name("llms-txt.{$locale}.full");
-        }
-    }
-
-    /**
-     * Resolve the LlmsTxt instance from the service container.
-     *
-     * If the application has bound a custom `LlmsTxt` instance, it is
-     * used; otherwise a fresh empty instance is returned.
-     */
-    protected function resolveLlmsTxt(): LlmsTxt
-    {
-        $locale = $this->app->getLocale();
-
-        if (LlmsTxtRegistry::hasLocale($locale)) {
-            return LlmsTxtRegistry::resolve($locale);
+        if (empty($locales)) {
+            return;
         }
 
-        if ($this->app->bound(LlmsTxt::class)) {
-            return $this->app->make(LlmsTxt::class);
-        }
+        $router->get('/{locale}/llms.txt', [LlmsTxtController::class, 'localizedIndex'])
+            ->whereIn('locale', $locales)
+            ->name('llms-txt.localized.index');
 
-        return new LlmsTxt;
-    }
-
-    /**
-     * Build a plain-text HTTP response with the correct content type.
-     *
-     * @param  string  $content  The response body.
-     */
-    protected function buildTextResponse(string $content): Response
-    {
-        return response($content, 200, [
-            'Content-Type' => 'text/plain; charset=utf-8',
-        ]);
+        $router->get('/{locale}/llms-full.txt', [LlmsTxtController::class, 'localizedFull'])
+            ->whereIn('locale', $locales)
+            ->name('llms-txt.localized.full');
     }
 }

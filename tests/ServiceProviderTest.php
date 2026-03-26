@@ -8,23 +8,18 @@ use SchaeferSoft\LaravelLlmsTxt\LlmsTxtServiceProvider;
 use SchaeferSoft\LaravelLlmsTxt\Section;
 
 it('registers the llms.txt route', function () {
-    config()->set('llms-txt.route_enabled', true);
-
     $this->get('/llms.txt')
         ->assertStatus(200)
         ->assertHeader('Content-Type', 'text/plain; charset=utf-8');
 });
 
 it('registers the llms-full.txt route', function () {
-    config()->set('llms-txt.route_enabled', true);
-
     $this->get('/llms-full.txt')
         ->assertStatus(200)
         ->assertHeader('Content-Type', 'text/plain; charset=utf-8');
 });
 
 it('serves content from bound LlmsTxt instance', function () {
-    config()->set('llms-txt.route_enabled', true);
     config()->set('llms-txt.cache_enabled', false);
 
     app()->bind(LlmsTxt::class, function () {
@@ -47,18 +42,42 @@ it('serves content from bound LlmsTxt instance', function () {
 });
 
 it('registers localized routes when localize_routes is enabled', function () {
-    // Re-boot provider with localized routes config.
     config()->set('llms-txt.localize_routes', true);
     config()->set('llms-txt.locales', ['de', 'en']);
 
-    // Manually trigger route registration since config was set after boot.
-    $provider = new LlmsTxtServiceProvider(app());
-    $provider->boot();
+    // Re-boot provider so localized routes are registered with the new config.
+    (new LlmsTxtServiceProvider(app()))->boot();
 
     $this->get('/de/llms.txt')->assertStatus(200);
     $this->get('/en/llms.txt')->assertStatus(200);
     $this->get('/de/llms-full.txt')->assertStatus(200);
     $this->get('/en/llms-full.txt')->assertStatus(200);
+});
+
+it('returns 404 for unregistered locale segments', function () {
+    config()->set('llms-txt.localize_routes', true);
+    config()->set('llms-txt.locales', ['de', 'en']);
+
+    (new LlmsTxtServiceProvider(app()))->boot();
+
+    $this->get('/fr/llms.txt')->assertStatus(404);
+});
+
+it('sets the application locale when a localized route is hit', function () {
+    config()->set('llms-txt.localize_routes', true);
+    config()->set('llms-txt.locales', ['de', 'en']);
+    config()->set('llms-txt.cache_enabled', false);
+
+    app()->bind(LlmsTxt::class, fn () => LlmsTxt::create()
+        ->title(fn () => app()->getLocale() === 'de' ? 'Deutsch' : 'English')
+    );
+
+    (new LlmsTxtServiceProvider(app()))->boot();
+
+    $this->get('/de/llms.txt')->assertSee('# Deutsch', false);
+    $this->get('/en/llms.txt')->assertSee('# English', false);
+
+    app()->forgetInstance(LlmsTxt::class);
 });
 
 it('merges the default config', function () {

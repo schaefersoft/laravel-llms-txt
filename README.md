@@ -213,85 +213,129 @@ LlmsTxt::create()
 
 ## Localization
 
-### Per-entry and per-section locale
+The package uses Laravel's `__()` / `trans()` translation system for multilingual output. You define **one** `LlmsTxt` binding using Closures for all translatable strings. The Closures are evaluated lazily at render time, after the application locale has been set, so they always resolve to the correct language.
 
-Attach a locale to any `Entry` or `Section`:
-
-```php
-Section::create('Leistungen', 'de')
-    ->addEntry(Entry::create(
-        'Webentwicklung',
-        'https://schaefersoft.ch/de/leistungen',
-        'Moderne Webanwendungen mit Laravel und Vue.js',
-        'de',
-    ));
-```
-
-### Locale-prefixed routes
-
-Enable locale-prefixed routes in `config/llms-txt.php`:
+### Lang files
 
 ```php
-'locales'         => ['de', 'en'],
-'localize_routes' => true,
+// lang/de/llms.php
+return [
+    'title'       => 'SchaeferSoft',
+    'description' => 'Webentwicklung und Softwareagentur',
+    'sections'    => ['services' => 'Leistungen'],
+    'entries'     => [
+        'web' => [
+            'title'       => 'Webentwicklung',
+            'description' => 'Moderne Webanwendungen mit Laravel und Vue.js',
+        ],
+    ],
+];
+
+// lang/en/llms.php
+return [
+    'title'       => 'SchaeferSoft',
+    'description' => 'Web development and software agency',
+    'sections'    => ['services' => 'Services'],
+    'entries'     => [
+        'web' => [
+            'title'       => 'Web Development',
+            'description' => 'Modern web applications with Laravel and Vue.js',
+        ],
+    ],
+];
 ```
 
-This registers `/de/llms.txt`, `/en/llms.txt`, `/de/llms-full.txt`, and `/en/llms-full.txt`.
-
-### Locale-aware registration with LlmsTxtRegistry
-
-For multilingual sites, use `LlmsTxtRegistry::forLocale()` to register a separate builder per locale. The package sets `app()->getLocale()` before resolving the instance, so the correct factory is picked automatically — including on the default route (`/llms.txt`) which uses your app's default locale.
+### Single binding with Closure-based translations
 
 ```php
 // app/Providers/LlmsTxtServiceProvider.php
 
 use SchaeferSoft\LaravelLlmsTxt\Entry;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxtRegistry;
 use SchaeferSoft\LaravelLlmsTxt\Section;
 
 public function register(): void
 {
-    LlmsTxtRegistry::forLocale('de', fn() =>
+    $this->app->bind(LlmsTxt::class, fn () =>
         LlmsTxt::create()
-            ->title('SchaeferSoft')
-            ->description('Webentwicklung und Softwareagentur')
+            ->title(fn () => __('llms.title'))
+            ->description(fn () => __('llms.description'))
             ->addSection(
-                Section::create('Leistungen')
+                Section::create(fn () => __('llms.sections.services'))
                     ->addEntry(Entry::create(
-                        'Webentwicklung',
-                        'https://schaefersoft.ch/leistungen/web',
-                        'Moderne Webanwendungen mit Laravel und Vue.js',
-                    ))
-            )
-    );
-
-    LlmsTxtRegistry::forLocale('en', fn() =>
-        LlmsTxt::create()
-            ->title('SchaeferSoft')
-            ->description('Web development and software agency')
-            ->addSection(
-                Section::create('Services')
-                    ->addEntry(Entry::create(
-                        'Web Development',
-                        'https://schaefersoft.ch/en/services/web',
-                        'Modern web applications with Laravel and Vue.js',
+                        fn () => __('llms.entries.web.title'),
+                        'https://schaefersoft.ch/services/web',
+                        fn () => __('llms.entries.web.description'),
                     ))
             )
     );
 }
 ```
 
-- `/llms.txt` serves the factory for your app's default locale (e.g. `'de'`)
-- `/en/llms.txt` serves the `'en'` factory
+### Built-in locale-prefixed routes
 
-The registry takes priority over any `app()->bind(LlmsTxt::class, ...)` binding.
+For simple setups without a dedicated localization package, enable the built-in locale routes in `config/llms-txt.php`:
+
+```php
+'locales'         => ['en'],     // non-default locales; default locale uses /llms.txt
+'localize_routes' => true,
+```
+
+This registers:
+- `/llms.txt` — renders with your app's default locale (e.g. `de`)
+- `/en/llms.txt` — sets locale to `en` then renders
+- `/llms-full.txt` and `/en/llms-full.txt` likewise
+
+Unrecognised locale segments (e.g. `/fr/llms.txt` when `fr` is not in `locales`) return a 404.
+
+### Integration with any localization package
+
+The package works with any localization solution (mcamara, spatie, custom middleware) because the controller reads `app()->getLocale()`, which is set by your localization middleware before the request reaches the controller.
+
+If you use `mcamara/laravel-localization` or a similar package that handles locale-prefixed URLs (e.g. `/en/llms.txt`), just set `route_enabled => false` and register the routes inside your existing localization group:
+
+```php
+// config/llms-txt.php
+'route_enabled' => false,
+```
+
+```php
+// routes/web.php
+use SchaeferSoft\LaravelLlmsTxt\Http\Controllers\LlmsTxtController;
+
+Route::group([
+    'prefix'     => LaravelLocalization::setLocale(),
+    'middleware' => ['localize'],
+], function () {
+    Route::get('/llms.txt',      [LlmsTxtController::class, 'index'])->name('llms-txt.index');
+    Route::get('/llms-full.txt', [LlmsTxtController::class, 'full'])->name('llms-txt.full');
+});
+```
+
+The middleware sets `app()->setLocale()` before the controller runs — no other integration required.
+
+### Static file generation with locales
+
+```bash
+# Generate with the app's default locale
+php artisan llms:generate
+
+# Generate for a specific locale (writes to public/de/llms.txt)
+php artisan llms:generate --locale=de
+
+# Generate for all locales defined in llms-txt.locales
+php artisan llms:generate --all-locales
+```
+
+`--locale` sets `app()->setLocale()` before rendering so Closures evaluate correctly.
 
 Writing to disk with a locale set will automatically use a locale-prefixed path:
 
 ```php
+app()->setLocale('de');
+
 LlmsTxt::create()
-    ->title('SchaeferSoft')
+    ->title(fn () => __('llms.title'))
     ->locale('de')
     ->writeToDisk(); // writes to de/llms.txt on the configured disk
 ```

@@ -66,3 +66,27 @@ it('supports fluent locale setter', function () {
 
     expect($section->getLocale())->toBe('de');
 });
+
+it('renders name from a closure', function () {
+    $section = Section::create(fn () => 'Closure Section');
+
+    expect($section->render())->toBe('## Closure Section');
+});
+
+it('evaluates name closure at render time respecting current locale', function () {
+    app()->setLocale('de');
+
+    $section = Section::create(fn () => app()->getLocale() === 'de' ? 'Leistungen' : 'Services');
+
+    expect($section->render())->toBe('## Leistungen');
+
+    app()->setLocale('en');
+
+    expect($section->render())->toBe('## Services');
+});
+
+it('getName evaluates closures', function () {
+    $section = Section::create(fn () => 'Resolved Name');
+
+    expect($section->getName())->toBe('Resolved Name');
+});

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SchaeferSoft\LaravelLlmsTxt;
 
+use Closure;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
@@ -13,11 +14,12 @@ use Illuminate\Support\Collection;
 /**
  * Main builder class for constructing and rendering an llms.txt document.
  *
- * Provides a fluent, chainable API for defining the site title, description,
- * locale, and sections with entries. Supports writing to disk, retrieving
- * cached output, and generating the extended llms-full.txt format.
+ * Title and description accept either a plain string or a Closure. Closures
+ * are evaluated lazily at render time, so they pick up whatever locale
+ * `app()->setLocale()` has set by then — enabling seamless use of Laravel's
+ * `__()` / `trans()` helpers for multilingual output.
  *
- * @example
+ * @example Plain strings
  * ```php
  * LlmsTxt::create()
  *     ->title('SchaeferSoft')
@@ -28,21 +30,43 @@ use Illuminate\Support\Collection;
  *     )
  *     ->writeToDisk();
  * ```
+ *
+ * @example Translated via lang files
+ * ```php
+ * LlmsTxt::create()
+ *     ->title(fn() => __('llms.title'))
+ *     ->description(fn() => __('llms.description'))
+ *     ->addSection(
+ *         Section::create(fn() => __('llms.sections.services'))
+ *             ->addEntry(Entry::create(
+ *                 fn() => __('llms.entries.web.title'),
+ *                 'https://example.com/services/web',
+ *                 fn() => __('llms.entries.web.description'),
+ *             ))
+ *     );
+ * ```
  */
 class LlmsTxt
 {
     /**
-     * The site title rendered as a top-level heading.
+     * The site title rendered as a top-level heading (string or lazy Closure).
+     *
+     * @var string|Closure(): string
      */
-    protected string $title = '';
+    protected string|Closure $title = '';
 
     /**
-     * The site tagline or description rendered as a blockquote.
+     * The site tagline or description rendered as a blockquote (string, lazy Closure, or null).
+     *
+     * @var string|Closure(): string|null
      */
-    protected ?string $description = null;
+    protected string|Closure|null $description = null;
 
     /**
-     * The locale for this document (e.g. 'de', 'en').
+     * The locale used for file path resolution (e.g. 'de', 'en').
+     *
+     * This is only used to determine the output path when calling writeToDisk().
+     * Content locale is controlled by app()->setLocale() before render.
      */
     protected ?string $locale = null;
 
@@ -53,9 +77,6 @@ class LlmsTxt
      */
     protected Collection $sections;
 
-    /**
-     * Create a new LlmsTxt instance.
-     */
     public function __construct()
     {
         $this->sections = new Collection;
@@ -71,8 +92,10 @@ class LlmsTxt
 
     /**
      * Set the site title.
+     *
+     * @param  string|Closure(): string  $title
      */
-    public function title(string $title): static
+    public function title(string|Closure $title): static
     {
         $this->title = $title;
 
@@ -81,8 +104,10 @@ class LlmsTxt
 
     /**
      * Set the site description / tagline.
+     *
+     * @param  string|Closure(): string  $description
      */
-    public function description(string $description): static
+    public function description(string|Closure $description): static
     {
         $this->description = $description;
 
@@ -90,7 +115,10 @@ class LlmsTxt
     }
 
     /**
-     * Set the locale for this document.
+     * Set the locale used for writeToDisk() path resolution.
+     *
+     * This does NOT affect which content is rendered — set the application
+     * locale via app()->setLocale() before calling render() for that.
      */
     public function locale(?string $locale): static
     {
@@ -110,23 +138,23 @@ class LlmsTxt
     }
 
     /**
-     * Get the site title.
+     * Get the resolved site title.
      */
     public function getTitle(): string
     {
-        return $this->title;
+        return $this->resolveValue($this->title);
     }
 
     /**
-     * Get the description.
+     * Get the resolved description.
      */
     public function getDescription(): ?string
     {
-        return $this->description;
+        return $this->description !== null ? $this->resolveValue($this->description) : null;
     }
 
     /**
-     * Get the locale.
+     * Get the locale used for file path resolution.
      */
     public function getLocale(): ?string
     {
@@ -146,21 +174,25 @@ class LlmsTxt
     /**
      * Render the document as an llms.txt string.
      *
-     * The output follows the llms.txt specification:
-     * - A top-level `# Title` heading
-     * - An optional `> Description` blockquote
-     * - One or more `## Section` headings, each containing link entries
+     * All Closures (title, description, section names, entry fields) are
+     * evaluated here, after app()->setLocale() has been called by the caller.
      */
     public function render(): string
     {
         $parts = [];
 
-        if ($this->title !== '') {
-            $parts[] = "# {$this->title}";
+        $title = $this->resolveValue($this->title);
+
+        if ($title !== '') {
+            $parts[] = "# {$title}";
         }
 
-        if ($this->description !== null && $this->description !== '') {
-            $parts[] = "> {$this->description}";
+        if ($this->description !== null) {
+            $description = $this->resolveValue($this->description);
+
+            if ($description !== '') {
+                $parts[] = "> {$description}";
+            }
         }
 
         foreach ($this->sections as $section) {
@@ -174,8 +206,7 @@ class LlmsTxt
      * Render the document as an llms-full.txt string.
      *
      * Same structure as llms.txt but fetches the remote content of each
-     * entry URL and appends it below the entry line. Fetched content is
-     * included verbatim inside a fenced code block.
+     * entry URL and appends it below the entry line.
      *
      * @param  Client|null  $httpClient  Optional Guzzle client for testing.
      */
@@ -185,16 +216,22 @@ class LlmsTxt
 
         $parts = [];
 
-        if ($this->title !== '') {
-            $parts[] = "# {$this->title}";
+        $title = $this->resolveValue($this->title);
+
+        if ($title !== '') {
+            $parts[] = "# {$title}";
         }
 
-        if ($this->description !== null && $this->description !== '') {
-            $parts[] = "> {$this->description}";
+        if ($this->description !== null) {
+            $description = $this->resolveValue($this->description);
+
+            if ($description !== '') {
+                $parts[] = "> {$description}";
+            }
         }
 
         foreach ($this->sections as $section) {
-            $sectionParts = ["## {$section->getName()}"];
+            $sectionParts = ['## '.$section->getName()];
 
             foreach ($section->getEntries() as $entry) {
                 $sectionParts[] = $entry->render();
@@ -216,9 +253,6 @@ class LlmsTxt
      * Fetch the content of an entry URL.
      *
      * Returns null when the request fails or the response is not successful.
-     *
-     * @param  Client  $client  The Guzzle HTTP client.
-     * @param  string  $url  The URL to fetch.
      */
     protected function fetchEntryContent(Client $client, string $url): ?string
     {
@@ -238,16 +272,12 @@ class LlmsTxt
     /**
      * Write the llms.txt output to the configured filesystem disk.
      *
-     * The filename is derived from the locale when one is set, so
-     * `->locale('de')->writeToDisk()` writes to `de/llms.txt`.
-     *
      * @param  string|null  $filename  Override the output filename.
      * @return bool `true` on success.
      */
     public function writeToDisk(?string $filename = null): bool
     {
         $disk = $this->getFilesystemManager()->disk(config('llms-txt.disk', 'public'));
-
         $path = $filename ?? $this->resolveFilename('llms.txt');
 
         return $disk->put($path, $this->render());
@@ -256,14 +286,13 @@ class LlmsTxt
     /**
      * Write the llms-full.txt output to the configured filesystem disk.
      *
-     * @param  string|null  $filename  Override the output filename.
+     * @param  string|null  $filename    Override the output filename.
      * @param  Client|null  $httpClient  Optional Guzzle client for testing.
      * @return bool `true` on success.
      */
     public function writeFullToDisk(?string $filename = null, ?Client $httpClient = null): bool
     {
         $disk = $this->getFilesystemManager()->disk(config('llms-txt.disk', 'public'));
-
         $path = $filename ?? $this->resolveFilename('llms-full.txt');
 
         return $disk->put($path, $this->renderFull($httpClient));
@@ -271,9 +300,6 @@ class LlmsTxt
 
     /**
      * Get a cached version of the rendered output, or render and cache it.
-     *
-     * Caching is controlled by the `llms-txt.cache_enabled` and
-     * `llms-txt.cache_ttl` configuration values.
      *
      * @param  string  $key  The cache key to store the output under.
      */
@@ -304,9 +330,7 @@ class LlmsTxt
     }
 
     /**
-     * Resolve the storage filename, optionally prefixing with locale.
-     *
-     * @param  string  $basename  The base filename (e.g. 'llms.txt').
+     * Resolve the storage filename, optionally prefixing with the locale.
      */
     protected function resolveFilename(string $basename): string
     {
@@ -331,5 +355,15 @@ class LlmsTxt
     public function __toString(): string
     {
         return $this->render();
+    }
+
+    /**
+     * Evaluate a value, calling it if it is a Closure.
+     *
+     * @param  string|Closure(): string  $value
+     */
+    private function resolveValue(string|Closure $value): string
+    {
+        return $value instanceof Closure ? ($value)() : $value;
     }
 }

@@ -6,14 +6,13 @@ namespace SchaeferSoft\LaravelLlmsTxt\Commands;
 
 use Illuminate\Console\Command;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxtRegistry;
 
 /**
  * Artisan command to generate static llms.txt and llms-full.txt files.
  *
- * Writes the rendered output to the configured filesystem disk (default: public).
- * Supports an optional `--full` flag to also generate the extended llms-full.txt,
- * and a `--locale` option to generate locale-specific files.
+ * When generating for a specific locale, the application locale is set via
+ * app()->setLocale() before rendering so that Closure-based title/description/
+ * entry values (e.g. fn() => __('llms.title')) resolve to the correct language.
  *
  * @example
  * ```bash
@@ -21,30 +20,18 @@ use SchaeferSoft\LaravelLlmsTxt\LlmsTxtRegistry;
  * php artisan llms:generate --full
  * php artisan llms:generate --locale=de
  * php artisan llms:generate --locale=de --full
+ * php artisan llms:generate --all-locales --full
  * ```
  */
 class GenerateLlmsTxtCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'llms:generate
                             {--full : Also generate llms-full.txt by fetching each entry URL}
                             {--locale= : Generate for a specific locale (e.g. de, en)}
                             {--all-locales : Generate files for all configured locales}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Generate static llms.txt (and optionally llms-full.txt) files';
 
-    /**
-     * Execute the console command.
-     */
     public function handle(): int
     {
         if ($this->option('all-locales')) {
@@ -56,9 +43,6 @@ class GenerateLlmsTxtCommand extends Command
         return $this->generateForLocale(is_string($locale) ? $locale : null);
     }
 
-    /**
-     * Generate files for all locales defined in config.
-     */
     protected function generateForAllLocales(): int
     {
         $locales = config('llms-txt.locales', []);
@@ -85,11 +69,16 @@ class GenerateLlmsTxtCommand extends Command
     /**
      * Generate llms.txt (and optionally llms-full.txt) for the given locale.
      *
-     * @param  string|null  $locale  The locale to generate for, or null for the default.
+     * Sets app()->setLocale() before resolving and rendering so that any
+     * Closure-based values in the bound LlmsTxt instance evaluate correctly.
      */
     protected function generateForLocale(?string $locale): int
     {
-        $llmsTxt = $this->resolveLlmsTxt();
+        if ($locale !== null) {
+            app()->setLocale($locale);
+        }
+
+        $llmsTxt = $this->resolve();
 
         if ($locale !== null) {
             $llmsTxt->locale($locale);
@@ -131,20 +120,8 @@ class GenerateLlmsTxtCommand extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * Resolve the LlmsTxt instance from the service container.
-     *
-     * Uses the bound instance if one has been registered, otherwise
-     * falls back to a fresh empty instance.
-     */
-    protected function resolveLlmsTxt(): LlmsTxt
+    protected function resolve(): LlmsTxt
     {
-        $locale = app()->getLocale();
-
-        if (LlmsTxtRegistry::hasLocale($locale)) {
-            return LlmsTxtRegistry::resolve($locale);
-        }
-
         if (app()->bound(LlmsTxt::class)) {
             return app(LlmsTxt::class);
         }

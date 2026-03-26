@@ -4,20 +4,34 @@ declare(strict_types=1);
 
 namespace SchaeferSoft\LaravelLlmsTxt;
 
+use Closure;
 use Illuminate\Support\Collection;
 
 /**
  * Represents a named section within an llms.txt document.
  *
- * A section groups related entries under a heading and can optionally
- * carry a locale for multilingual site support.
+ * The section name accepts either a plain string or a Closure, evaluated
+ * lazily at render time so that `__()` translations work correctly when
+ * the application locale has already been set.
+ *
+ * @example Plain string
+ * ```php
+ * Section::create('Services')
+ * ```
+ *
+ * @example Translated via lang files
+ * ```php
+ * Section::create(fn() => __('llms.sections.services'))
+ * ```
  */
 class Section
 {
     /**
-     * The section heading.
+     * The section heading (string or lazy Closure).
+     *
+     * @var string|Closure(): string
      */
-    protected string $name;
+    protected string|Closure $name;
 
     /**
      * The locale associated with this section (e.g. 'de', 'en').
@@ -32,12 +46,10 @@ class Section
     protected Collection $entries;
 
     /**
-     * Create a new Section instance.
-     *
-     * @param  string  $name  The section heading.
-     * @param  string|null  $locale  An optional locale identifier.
+     * @param  string|Closure(): string  $name    The section heading.
+     * @param  string|null               $locale  An optional locale identifier.
      */
-    public function __construct(string $name, ?string $locale = null)
+    public function __construct(string|Closure $name, ?string $locale = null)
     {
         $this->name = $name;
         $this->locale = $locale;
@@ -47,18 +59,20 @@ class Section
     /**
      * Static factory method for fluent construction.
      *
-     * @param  string  $name  The section heading.
-     * @param  string|null  $locale  An optional locale identifier.
+     * @param  string|Closure(): string  $name    The section heading.
+     * @param  string|null               $locale  An optional locale identifier.
      */
-    public static function create(string $name, ?string $locale = null): static
+    public static function create(string|Closure $name, ?string $locale = null): static
     {
         return new static($name, $locale);
     }
 
     /**
      * Set the section name.
+     *
+     * @param  string|Closure(): string  $name
      */
-    public function name(string $name): static
+    public function name(string|Closure $name): static
     {
         $this->name = $name;
 
@@ -86,11 +100,11 @@ class Section
     }
 
     /**
-     * Get the section name.
+     * Get the resolved section name.
      */
     public function getName(): string
     {
-        return $this->name;
+        return $this->resolveValue($this->name);
     }
 
     /**
@@ -114,15 +128,11 @@ class Section
     /**
      * Render this section as llms.txt markdown.
      *
-     * Format:
-     * ```
-     * ## Section Name
-     * - [Entry Title](https://url.com): Entry description
-     * ```
+     * Closures are evaluated here, after the application locale has been set.
      */
     public function render(): string
     {
-        $lines = ["## {$this->name}"];
+        $lines = ['## '.$this->resolveValue($this->name)];
 
         foreach ($this->entries as $entry) {
             $lines[] = $entry->render();
@@ -137,5 +147,15 @@ class Section
     public function __toString(): string
     {
         return $this->render();
+    }
+
+    /**
+     * Evaluate a value, calling it if it is a Closure.
+     *
+     * @param  string|Closure(): string  $value
+     */
+    private function resolveValue(string|Closure $value): string
+    {
+        return $value instanceof Closure ? ($value)() : $value;
     }
 }
