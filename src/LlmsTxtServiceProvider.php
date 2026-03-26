@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace SchaeferSoft\LaravelLlmsTxt;
 
-use Illuminate\Http\Response;
-use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use SchaeferSoft\LaravelLlmsTxt\Commands\GenerateLlmsTxtCommand;
+use SchaeferSoft\LaravelLlmsTxt\Http\Controllers\LlmsTxtController;
 
 /**
  * Service provider for the laravel-llms-txt package.
@@ -62,19 +61,15 @@ class LlmsTxtServiceProvider extends ServiceProvider
     {
         $router = $this->app['router'];
 
-        $llmsRoute = config('llms-txt.llms_txt_route', '/llms.txt');
-        $llmsFullRoute = config('llms-txt.llms_full_txt_route', '/llms-full.txt');
+        $router->get(
+            config('llms-txt.llms_txt_route', '/llms.txt'),
+            [LlmsTxtController::class, 'index'],
+        )->name('llms-txt.index');
 
-        $router->get($llmsRoute, function () {
-            return $this->buildTextResponse($this->resolveLlmsTxt()->getCached('llms-txt'));
-        })->name('llms-txt.index');
-
-        $router->get($llmsFullRoute, function () {
-            $llmsTxt = $this->resolveLlmsTxt();
-            $content = $llmsTxt->renderFull();
-
-            return $this->buildTextResponse($content);
-        })->name('llms-txt.full');
+        $router->get(
+            config('llms-txt.llms_full_txt_route', '/llms-full.txt'),
+            [LlmsTxtController::class, 'full'],
+        )->name('llms-txt.full');
 
         if (config('llms-txt.localize_routes', false)) {
             $this->registerLocalizedRoutes($router);
@@ -87,62 +82,19 @@ class LlmsTxtServiceProvider extends ServiceProvider
      * For each locale defined in `llms-txt.locales`, registers:
      * - `/{locale}/llms.txt`
      * - `/{locale}/llms-full.txt`
-     *
-     * @param  Router  $router
      */
     protected function registerLocalizedRoutes(mixed $router): void
     {
-        $locales = config('llms-txt.locales', []);
+        foreach (config('llms-txt.locales', []) as $locale) {
+            $router->get(
+                "/{$locale}/llms.txt",
+                [LlmsTxtController::class, 'localizedIndex'],
+            )->name("llms-txt.{$locale}.index");
 
-        foreach ($locales as $locale) {
-            $router->get("/{$locale}/llms.txt", function () use ($locale) {
-                $this->app->setLocale($locale);
-                $llmsTxt = $this->resolveLlmsTxt();
-                $content = $llmsTxt->getCached("llms-txt.{$locale}");
-
-                return $this->buildTextResponse($content);
-            })->name("llms-txt.{$locale}.index");
-
-            $router->get("/{$locale}/llms-full.txt", function () use ($locale) {
-                $this->app->setLocale($locale);
-                $llmsTxt = $this->resolveLlmsTxt();
-                $content = $llmsTxt->renderFull();
-
-                return $this->buildTextResponse($content);
-            })->name("llms-txt.{$locale}.full");
+            $router->get(
+                "/{$locale}/llms-full.txt",
+                [LlmsTxtController::class, 'localizedFull'],
+            )->name("llms-txt.{$locale}.full");
         }
-    }
-
-    /**
-     * Resolve the LlmsTxt instance from the service container.
-     *
-     * If the application has bound a custom `LlmsTxt` instance, it is
-     * used; otherwise a fresh empty instance is returned.
-     */
-    protected function resolveLlmsTxt(): LlmsTxt
-    {
-        $locale = $this->app->getLocale();
-
-        if (LlmsTxtRegistry::hasLocale($locale)) {
-            return LlmsTxtRegistry::resolve($locale);
-        }
-
-        if ($this->app->bound(LlmsTxt::class)) {
-            return $this->app->make(LlmsTxt::class);
-        }
-
-        return new LlmsTxt;
-    }
-
-    /**
-     * Build a plain-text HTTP response with the correct content type.
-     *
-     * @param  string  $content  The response body.
-     */
-    protected function buildTextResponse(string $content): Response
-    {
-        return response($content, 200, [
-            'Content-Type' => 'text/plain; charset=utf-8',
-        ]);
     }
 }
