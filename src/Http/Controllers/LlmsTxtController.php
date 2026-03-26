@@ -22,7 +22,7 @@ class LlmsTxtController extends Controller
     public function index(): Response
     {
         return $this->textResponse(
-            $this->resolve()->getCached('llms-txt')
+            $this->resolve()->getCached('llms-txt.'.app()->getLocale())
         );
     }
 
@@ -32,7 +32,7 @@ class LlmsTxtController extends Controller
     public function full(): Response
     {
         return $this->textResponse(
-            $this->resolve()->getCachedFull('llms-txt-full')
+            $this->resolve()->getCachedFull('llms-txt-full.'.app()->getLocale())
         );
     }
 
@@ -47,7 +47,7 @@ class LlmsTxtController extends Controller
         app()->setLocale($locale);
 
         return $this->textResponse(
-            $this->resolve()->getCached("llms-txt.{$locale}")
+            $this->resolve()->getCached('llms-txt.'.app()->getLocale())
         );
     }
 
@@ -59,7 +59,7 @@ class LlmsTxtController extends Controller
         app()->setLocale($locale);
 
         return $this->textResponse(
-            $this->resolve()->getCachedFull("llms-txt-full.{$locale}")
+            $this->resolve()->getCachedFull('llms-txt-full.'.app()->getLocale())
         );
     }
 
