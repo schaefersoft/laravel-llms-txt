@@ -51,3 +51,15 @@ jobs:
 
       - name: Run tests
         run: ./vendor/bin/pest
+
+  all-tests-passed:
+    name: Run Tests
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check matrix result
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            exit 1
+          fi
