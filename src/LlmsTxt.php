@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SchaeferSoft\LaravelLlmsTxt;
 
+use Closure;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
@@ -17,14 +18,21 @@ use Illuminate\Support\Collection;
  * locale, and sections with entries. Supports writing to disk, retrieving
  * cached output, and generating the extended llms-full.txt format.
  *
+ * Title and description accept either a plain string or a Closure that returns
+ * a string. Closures are evaluated lazily at render time, which means they
+ * respect the application's current locale — ideal for use with `__()`.
+ *
  * @example
  * ```php
  * LlmsTxt::create()
- *     ->title('SchaeferSoft')
- *     ->description('Web development and software agency')
+ *     ->title(fn () => __('llms.title'))
+ *     ->description(fn () => __('llms.description'))
  *     ->addSection(
- *         Section::create('Services')
- *             ->addEntry(Entry::create('Web Development', 'https://example.com/services'))
+ *         Section::create(fn () => __('llms.services'))
+ *             ->addEntry(Entry::create(
+ *                 fn () => __('llms.web_dev'),
+ *                 'https://example.com/services',
+ *             ))
  *     )
  *     ->writeToDisk();
  * ```
@@ -34,15 +42,15 @@ class LlmsTxt
     /**
      * The site title rendered as a top-level heading.
      */
-    protected string $title = '';
+    protected string|Closure $title = '';
 
     /**
      * The site tagline or description rendered as a blockquote.
      */
-    protected ?string $description = null;
+    protected string|Closure|null $description = null;
 
     /**
-     * The locale for this document (e.g. 'de', 'en').
+     * The locale for this document (used only for file path resolution).
      */
     protected ?string $locale = null;
 
@@ -72,7 +80,7 @@ class LlmsTxt
     /**
      * Set the site title.
      */
-    public function title(string $title): static
+    public function title(string|Closure $title): static
     {
         $this->title = $title;
 
@@ -82,7 +90,7 @@ class LlmsTxt
     /**
      * Set the site description / tagline.
      */
-    public function description(string $description): static
+    public function description(string|Closure $description): static
     {
         $this->description = $description;
 
@@ -90,7 +98,7 @@ class LlmsTxt
     }
 
     /**
-     * Set the locale for this document.
+     * Set the locale for this document (used for file path resolution only).
      */
     public function locale(?string $locale): static
     {
@@ -110,19 +118,23 @@ class LlmsTxt
     }
 
     /**
-     * Get the site title.
+     * Get the site title, evaluating any Closure.
      */
     public function getTitle(): string
     {
-        return $this->title;
+        return $this->resolveValue($this->title);
     }
 
     /**
-     * Get the description.
+     * Get the description, evaluating any Closure.
      */
     public function getDescription(): ?string
     {
-        return $this->description;
+        if ($this->description === null) {
+            return null;
+        }
+
+        return $this->resolveValue($this->description);
     }
 
     /**
@@ -155,12 +167,18 @@ class LlmsTxt
     {
         $parts = [];
 
-        if ($this->title !== '') {
-            $parts[] = "# {$this->title}";
+        $title = $this->resolveValue($this->title);
+
+        if ($title !== '') {
+            $parts[] = "# {$title}";
         }
 
-        if ($this->description !== null && $this->description !== '') {
-            $parts[] = "> {$this->description}";
+        if ($this->description !== null) {
+            $description = $this->resolveValue($this->description);
+
+            if ($description !== '') {
+                $parts[] = "> {$description}";
+            }
         }
 
         foreach ($this->sections as $section) {
@@ -185,16 +203,22 @@ class LlmsTxt
 
         $parts = [];
 
-        if ($this->title !== '') {
-            $parts[] = "# {$this->title}";
+        $title = $this->resolveValue($this->title);
+
+        if ($title !== '') {
+            $parts[] = "# {$title}";
         }
 
-        if ($this->description !== null && $this->description !== '') {
-            $parts[] = "> {$this->description}";
+        if ($this->description !== null) {
+            $description = $this->resolveValue($this->description);
+
+            if ($description !== '') {
+                $parts[] = "> {$description}";
+            }
         }
 
         foreach ($this->sections as $section) {
-            $sectionParts = ["## {$section->getName()}"];
+            $sectionParts = ['## '.$section->getName()];
 
             foreach ($section->getEntries() as $entry) {
                 $sectionParts[] = $entry->render();
@@ -291,6 +315,28 @@ class LlmsTxt
     }
 
     /**
+     * Get a cached version of the llms-full.txt output, or render and cache it.
+     *
+     * Same caching behaviour as getCached() but calls renderFull() — avoiding
+     * repeated HTTP requests to every entry URL on each request.
+     *
+     * @param  string  $key  The cache key to store the output under.
+     * @param  Client|null  $httpClient  Optional Guzzle client for testing.
+     */
+    public function getCachedFull(string $key = 'llms-txt-full', ?Client $httpClient = null): string
+    {
+        if (! config('llms-txt.cache_enabled', false)) {
+            return $this->renderFull($httpClient);
+        }
+
+        /** @var CacheRepository $cache */
+        $cache = app('cache');
+        $ttl = (int) config('llms-txt.cache_ttl', 3600);
+
+        return $cache->remember($key, $ttl, fn () => $this->renderFull($httpClient));
+    }
+
+    /**
      * Flush a previously cached output.
      *
      * @param  string  $key  The cache key to flush.
@@ -331,5 +377,13 @@ class LlmsTxt
     public function __toString(): string
     {
         return $this->render();
+    }
+
+    /**
+     * Resolve a value that may be a plain string or a Closure.
+     */
+    private function resolveValue(string|Closure $value): string
+    {
+        return $value instanceof Closure ? ($value)() : $value;
     }
 }

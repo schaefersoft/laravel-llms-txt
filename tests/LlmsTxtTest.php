@@ -92,6 +92,58 @@ it('collects sections', function () {
 });
 
 // ---------------------------------------------------------------------------
+// Closure-based title and description
+// ---------------------------------------------------------------------------
+
+it('renders title from closure', function () {
+    $output = LlmsTxt::create()
+        ->title(fn () => 'Dynamic Title')
+        ->render();
+
+    expect($output)->toBe("# Dynamic Title\n");
+});
+
+it('renders description from closure', function () {
+    $output = LlmsTxt::create()
+        ->title('Site')
+        ->description(fn () => 'Dynamic Description')
+        ->render();
+
+    expect($output)->toBe("# Site\n\n> Dynamic Description\n");
+});
+
+it('getTitle and getDescription evaluate closures', function () {
+    $llms = LlmsTxt::create()
+        ->title(fn () => 'Computed Title')
+        ->description(fn () => 'Computed Desc');
+
+    expect($llms->getTitle())->toBe('Computed Title')
+        ->and($llms->getDescription())->toBe('Computed Desc');
+});
+
+it('evaluates closures at render time respecting locale', function () {
+    $locale = 'en';
+
+    $llms = LlmsTxt::create()
+        ->title(function () use (&$locale) {
+            return $locale === 'de' ? 'SchaeferSoft DE' : 'SchaeferSoft EN';
+        })
+        ->addSection(
+            Section::create(function () use (&$locale) {
+                return $locale === 'de' ? 'Leistungen' : 'Services';
+            })
+        );
+
+    expect($llms->render())->toContain('# SchaeferSoft EN')
+        ->and($llms->render())->toContain('## Services');
+
+    $locale = 'de';
+
+    expect($llms->render())->toContain('# SchaeferSoft DE')
+        ->and($llms->render())->toContain('## Leistungen');
+});
+
+// ---------------------------------------------------------------------------
 // Locale-aware file path
 // ---------------------------------------------------------------------------
 
@@ -159,6 +211,50 @@ it('caches and returns output when cache is enabled', function () {
 
     expect($output)->toBe("# Cached Site\n")
         ->and(Cache::has('test-llms-txt'))->toBeTrue();
+});
+
+it('caches and returns full output when cache is enabled', function () {
+    config()->set('llms-txt.cache_enabled', true);
+    config()->set('llms-txt.cache_ttl', 60);
+
+    Cache::flush();
+
+    $mock = new MockHandler([
+        new Response(200, [], 'Fetched content'),
+    ]);
+    $client = new Client(['handler' => HandlerStack::create($mock)]);
+
+    $llms = LlmsTxt::create()
+        ->title('Cached Full Site')
+        ->addSection(
+            Section::create('Docs')
+                ->addEntry(Entry::create('Guide', 'https://example.com/guide'))
+        );
+
+    $output = $llms->getCachedFull('test-llms-txt-full', $client);
+
+    expect($output)->toContain('# Cached Full Site')
+        ->and(Cache::has('test-llms-txt-full'))->toBeTrue();
+});
+
+it('returns full output without caching when cache is disabled', function () {
+    config()->set('llms-txt.cache_enabled', false);
+
+    $mock = new MockHandler([
+        new Response(200, [], 'Page content'),
+    ]);
+    $client = new Client(['handler' => HandlerStack::create($mock)]);
+
+    $output = LlmsTxt::create()
+        ->title('Site')
+        ->addSection(
+            Section::create('Docs')
+                ->addEntry(Entry::create('Guide', 'https://example.com/guide'))
+        )
+        ->getCachedFull('test-llms-txt-full', $client);
+
+    expect($output)->toContain('# Site')
+        ->toContain('Page content');
 });
 
 it('flushes the cache', function () {
