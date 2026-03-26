@@ -64,8 +64,10 @@ class LlmsTxtServiceProvider extends ServiceProvider
     {
         $router = $this->app['router'];
 
-        $llmsRoute = config('llms-txt.llms_txt_route', '/llms.txt');
-        $llmsFullRoute = config('llms-txt.llms_full_txt_route', '/llms-full.txt');
+        $router->get(
+            config('llms-txt.llms_txt_route', '/llms.txt'),
+            [LlmsTxtController::class, 'index'],
+        )->name('llms-txt.index');
 
         $router->get($llmsRoute, [LlmsTxtController::class, 'index'])
             ->name('llms-txt.index');

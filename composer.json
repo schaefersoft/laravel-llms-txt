@@ -1,6 +1,6 @@
 {
     "name": "schaefersoft/laravel-llms-txt",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Automatically generate llms.txt and llms-full.txt for Laravel applications",
     "keywords": [
         "laravel",
