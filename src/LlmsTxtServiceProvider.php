@@ -69,11 +69,10 @@ class LlmsTxtServiceProvider extends ServiceProvider
             [LlmsTxtController::class, 'index'],
         )->name('llms-txt.index');
 
-        $router->get($llmsRoute, [LlmsTxtController::class, 'index'])
-            ->name('llms-txt.index');
-
-        $router->get($llmsFullRoute, [LlmsTxtController::class, 'full'])
-            ->name('llms-txt.full');
+        $router->get(
+            config('llms-txt.llms_full_txt_route', '/llms-full.txt'),
+            [LlmsTxtController::class, 'full'],
+        )->name('llms-txt.full');
 
         if (config('llms-txt.localize_routes', false)) {
             $this->registerLocalizedRoutes($router);
