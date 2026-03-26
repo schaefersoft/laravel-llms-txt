@@ -1,0 +1,62 @@
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Route Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Enable or disable the dynamic routes for serving llms.txt and
+    | llms-full.txt. When enabled, the package registers routes that
+    | serve the generated content on the fly.
+    |
+    */
+
+    'route_enabled' => true,
+
+    'llms_txt_route' => '/llms.txt',
+
+    'llms_full_txt_route' => '/llms-full.txt',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure caching for the generated llms.txt output. When enabled,
+    | the generated content is cached for the specified TTL in seconds.
+    |
+    */
+
+    'cache_enabled' => true,
+
+    'cache_ttl' => 3600,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Filesystem Disk
+    |--------------------------------------------------------------------------
+    |
+    | The filesystem disk used when generating static files via the
+    | `llms:generate` Artisan command. Defaults to the `public` disk.
+    |
+    */
+
+    'disk' => 'public',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Localization
+    |--------------------------------------------------------------------------
+    |
+    | Define the supported locales for your application. When `localize_routes`
+    | is enabled, locale-prefixed routes are registered (e.g. /de/llms.txt).
+    |
+    */
+
+    'locales' => [],
+
+    'localize_routes' => false,
+
+];

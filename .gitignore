@@ -1,0 +1,8 @@
+# PHP stuff
+/vendor/
+/composer.lock
+/.phpunit.cache/
+/.pest/
+
+# IDE
+.idea
