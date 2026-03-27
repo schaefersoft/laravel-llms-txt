@@ -1,350 +1,61 @@
 # laravel-llms-txt
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/schaefersoft/laravel-llms-txt.svg?style=flat-square)](https://packagist.org/packages/schaefersoft/laravel-llms-txt)
-[![Tests](https://img.shields.io/github/actions/workflow/status/schaefersoft/laravel-llms-txt/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/schaefersoft/laravel-llms-txt/actions/workflows/run-tests.yml)
-[![Total Downloads](https://img.shields.io/packagist/dt/schaefersoft/laravel-llms-txt.svg?style=flat-square)](https://packagist.org/packages/schaefersoft/laravel-llms-txt)
+Automatically generate `llms.txt` and `llms-full.txt` for Laravel applications.
 
-Automatically generate [`llms.txt`](https://llmstxt.org) and `llms-full.txt` for Laravel applications, making your site
-more accessible to AI models and LLM-powered tools.
+> **What is `llms.txt`?**  
+> A simple Markdown file that helps AI models understand the structure of a website — similar to how `sitemap.xml` helps search engines. Structure according to [llmstxt.org](https://llmstxt.org/).
 
-## What is llms.txt?
+**Requirements:** PHP 8.2+ · Laravel 10, 11, 12 or 13
 
-The [llms.txt standard](https://llmstxt.org) defines a simple Markdown file that helps AI models understand the
-structure and content of a website — similar to how `sitemap.xml` helps search engines. This package provides a fluent
-PHP API and an Artisan command to generate and serve these files from your Laravel application.
-
-## Requirements
-
-- PHP 8.2+
-- Laravel 10, 11, 12, or 13
+---
 
 ## Installation
 
-Install via Composer:
-
 ```bash
 composer require schaefersoft/laravel-llms-txt
-```
-
-The package is auto-discovered by Laravel. Publish the config file:
-
-```bash
 php artisan vendor:publish --tag=llms-txt-config
 ```
 
+The package is auto-discovered by Laravel. After installation, `/llms.txt` is available immediately — no further configuration required.
+
+---
+
 ## Configuration
 
-After publishing, edit `config/llms-txt.php`:
+`config/llms-txt.php`:
 
 ```php
 return [
-    // Enable/disable the dynamic /llms.txt and /llms-full.txt routes
-    'route_enabled' => true,
-
+    'route_enabled'       => true,
     'llms_txt_route'      => '/llms.txt',
     'llms_full_txt_route' => '/llms-full.txt',
 
-    // When false, the service provider won't register routes automatically.
-    // Call LlmsTxt::routes() yourself inside a route group instead.
-    'register_routes' => true,
+    // false = register routes manually (see below)
+    'register_routes'     => true,
 
-    // Cache the generated output
-    'cache_enabled' => true,
-    'cache_ttl'     => 3600, // seconds
+    'cache_enabled'       => true,
+    'cache_ttl'           => 3600, // seconds
 
-    // Filesystem disk for static file generation (php artisan llms:generate)
-    'disk' => 'public',
+    // Disk for php artisan llms:generate
+    'disk'                => 'public',
 
     // Localization
-    'locales'         => ['de', 'en'],   // supported locales
-    'localize_routes' => false,          // register /de/llms.txt etc.
+    'locales'             => ['de', 'en'],
+    'localize_routes'     => false, // register /de/llms.txt etc.
 ];
 ```
 
-### Manual route registration
-
-By default (`register_routes => true`) the package registers the llms.txt routes automatically when it boots. Set
-`register_routes => false` to take control of when and how the routes are registered, then call `LlmsTxt::routes()`
-yourself inside any route group:
-
-```php
-// config/llms-txt.php
-'register_routes' => false,
-```
-
-```php
-// routes/web.php
-
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-
-// Apply custom middleware or cache headers
-Route::middleware(['web', 'cache.headers:public;max_age=3600'])
-    ->group(function () {
-        LlmsTxt::routes();
-    });
-```
-
-`LlmsTxt::routes()` is idempotent — calling it more than once registers the routes only once.
-
-#### With mcamara/laravel-localization
-
-```php
-// routes/web.php
-
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-
-Route::group(
-    ['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['localize']],
-    function () {
-        LlmsTxt::routes();
-    }
-);
-```
+---
 
 ## Usage
 
-### Zero-configuration: auto-resolving mode
+### Zero-config
 
-The package works out of the box with **zero configuration**. When no `LlmsTxt` binding exists in the container,
-visiting `/llms.txt` automatically builds a document from all registered GET routes in your application:
+If no custom definition is bound in the container, `/llms.txt` is automatically built from all registered GET routes in your application. A manual binding always takes precedence.
 
-```
-# My Laravel App
+### Custom definition (recommended)
 
-## Routes
-- [home](http://myapp.test/):
-- [about](http://myapp.test/about):
-- [services.index](http://myapp.test/services):
-...
-```
-
-A manual binding **always takes precedence** — auto-resolving is only used as a fallback. Once you bind a `LlmsTxt`
-instance, auto-resolving is skipped entirely.
-
-### Binding your LlmsTxt definition
-
-The recommended approach is to bind your `LlmsTxt` instance in a service provider so it is available for both dynamic
-routes and the Artisan command:
-
-```php
-// app/Providers/AppServiceProvider.php
-
-use SchaeferSoft\LaravelLlmsTxt\Entry;
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-use SchaeferSoft\LaravelLlmsTxt\Section;
-
-public function register(): void
-{
-    $this->app->bind(LlmsTxt::class, function () {
-        return LlmsTxt::create()   // or LlmsTxt::make() — both are identical
-            ->title('SchaeferSoft')
-            ->description('Web development and software agency')
-            ->addSection(
-                Section::create('Services')
-                    ->addEntry(Entry::create(
-                        'Web Development',
-                        'https://schaefersoft.ch/services/web',
-                        'Modern web applications with Laravel and Vue.js',
-                    ))
-                    ->addEntry(Entry::create(
-                        'Hosting',
-                        'https://schaefersoft.ch/services/hosting',
-                        'Managed hosting and DevOps',
-                    ))
-            )
-            ->addSection(
-                Section::create('References')
-                    ->addEntry(Entry::create(
-                        'Our Projects',
-                        'https://schaefersoft.ch/references',
-                        'Overview of all client projects',
-                    ))
-            );
-    });
-}
-```
-
-Once bound, visiting `/llms.txt` returns:
-
-```
-# SchaeferSoft
-
-> Web development and software agency
-
-## Services
-- [Web Development](https://schaefersoft.ch/services/web): Modern web applications with Laravel and Vue.js
-- [Hosting](https://schaefersoft.ch/services/hosting): Managed hosting and DevOps
-
-## References
-- [Our Projects](https://schaefersoft.ch/references): Overview of all client projects
-```
-
-### Extracting the binding into a dedicated service provider
-
-As your `LlmsTxt` definition grows, you may want to move it out of `AppServiceProvider` into its own file. Create a
-dedicated provider:
-
-```bash
-php artisan make:provider LlmsTxtServiceProvider
-```
-
-```php
-// app/Providers/LlmsTxtServiceProvider.php
-
-namespace App\Providers;
-
-use Illuminate\Support\ServiceProvider;
-use SchaeferSoft\LaravelLlmsTxt\Entry;
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-use SchaeferSoft\LaravelLlmsTxt\Section;
-
-class LlmsTxtServiceProvider extends ServiceProvider
-{
-    public function register(): void
-    {
-        $this->app->bind(LlmsTxt::class, function () {
-            return LlmsTxt::create()
-                ->title('SchaeferSoft')
-                ->description('Web development and software agency')
-                ->addSection(
-                    Section::create('Services')
-                        ->addEntry(Entry::create(
-                            'Web Development',
-                            'https://schaefersoft.ch/services/web',
-                            'Modern web applications with Laravel and Vue.js',
-                        ))
-                );
-        });
-    }
-}
-```
-
-Then register it in `bootstrap/providers.php`:
-
-```php
-return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\LlmsTxtServiceProvider::class,
-];
-```
-
-### Static file generation
-
-Use the Artisan command to write static files to the `public/` directory:
-
-```bash
-# Generate public/llms.txt
-php artisan llms:generate
-
-# Generate both public/llms.txt and public/llms-full.txt
-php artisan llms:generate --full
-
-# Generate for a specific locale (writes to public/de/llms.txt)
-php artisan llms:generate --locale=de
-
-# Generate for all locales defined in config
-php artisan llms:generate --all-locales
-
-# Combine flags
-php artisan llms:generate --all-locales --full
-```
-
-### Programmatic usage
-
-You can call the builder directly without binding it in the container. `create()` and `make()` are identical static
-factories — use whichever reads better:
-
-```php
-use SchaeferSoft\LaravelLlmsTxt\Entry;
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-use SchaeferSoft\LaravelLlmsTxt\Section;
-
-$content = LlmsTxt::make()
-    ->title('SchaeferSoft')
-    ->description('Web development agency')
-    ->addSection(
-        Section::create('Services')
-            ->addEntry(Entry::create('Web Development', 'https://schaefersoft.ch/services/web'))
-    )
-    ->render();
-
-// Write to disk directly
-LlmsTxt::make()
-    ->title('SchaeferSoft')
-    ->writeToDisk(); // writes to the configured disk as llms.txt
-
-// Or specify a custom filename
-LlmsTxt::make()
-    ->title('SchaeferSoft')
-    ->writeToDisk('custom/path/llms.txt');
-```
-
-### Fluent section and entry shorthands
-
-Use `section()` on `LlmsTxt` and `entry()` on `Section` for a more compact, readable style without constructing
-intermediate objects:
-
-```php
-LlmsTxt::make()
-    ->title('SchaeferSoft')
-    ->section('Services', fn ($s) => $s
-        ->entry('Web Development', 'https://schaefersoft.ch/services/web', 'Laravel & Vue.js')
-        ->entry('Hosting', 'https://schaefersoft.ch/services/hosting', 'Managed hosting')
-    )
-    ->section('References', fn ($s) => $s
-        ->entry('Our Projects', 'https://schaefersoft.ch/references', 'All client projects')
-    );
-```
-
-### Conditional building with `when()`
-
-Both `LlmsTxt` and `Section` support a `when()` method that mirrors Laravel's own behaviour. If the condition is truthy,
-the callback is invoked; the builder is always returned for chaining:
-
-```php
-LlmsTxt::make()
-    ->title('SchaeferSoft')
-    ->section('Services', fn ($s) => $s
-        ->entry('Web Dev', 'https://schaefersoft.ch/services/web')
-        ->when((bool) config('features.shop'), fn ($s) => $s
-            ->entry('Shop', 'https://schaefersoft.ch/shop')
-        )
-    )
-    ->when((bool) config('features.api'), fn ($llms) => $llms
-        ->section('API', fn ($s) => $s
-            ->entry('API Docs', 'https://schaefersoft.ch/api')
-        )
-    );
-```
-
-`when()` also accepts a `Closure` as its first argument for lazy evaluation:
-
-```php
-->when(fn () => Feature::active('shop'), fn ($s) => $s->entry('Shop', '...'))
-```
-
-### Entry `withDescription()`
-
-When building entries programmatically (not via the `section()->entry()` shorthand), `withDescription()` lets you set
-the description fluently:
-
-```php
-Entry::create('API Reference', 'https://schaefersoft.ch/api')
-    ->withDescription('Complete reference for all endpoints, auth, and rate limits.');
-```
-
-> **Note:** `withDescription()` is useful in the direct `Entry::create()` style. When using
-> the `section()->entry()` shorthand, the Section is returned — not the Entry — so this
-> method is not reachable from that chain. In that case, pass the description as the third
-> argument to `entry()` instead.
-
-## Localization
-
-### Single binding, all locales
-
-The cleanest approach is a single `app()->bind()` that uses Laravel's `__()` and `route()` helpers directly. Because
-`bind()` re-runs the factory on every resolution, and the package always sets `app()->setLocale()` before resolving your
-binding, every call automatically picks up the correct locale.
+Register your definition in a service provider so it is available for both dynamic routes and the Artisan command.
 
 ```php
 // app/Providers/AppServiceProvider.php
@@ -357,88 +68,163 @@ public function register(): void
 {
     $this->app->bind(LlmsTxt::class, function () {
         return LlmsTxt::create()
-            ->title(__('llms.title'))
-            ->description(__('llms.description'))
+            ->title('My App')
+            ->description('Short description')
             ->addSection(
-                Section::create(__('llms.sections.services'))
+                Section::create('Services')
                     ->addEntry(Entry::create(
-                        __('llms.entries.web_dev'),
-                        route('services.web'),
-                        __('llms.entries.web_dev_desc'),
-                    ))
-                    ->addEntry(Entry::create(
-                        __('llms.entries.hosting'),
-                        route('services.hosting'),
-                        __('llms.entries.hosting_desc'),
+                        'Web Development',
+                        'https://example.com/services/web',
+                        'Laravel & Vue.js',
                     ))
             );
     });
 }
 ```
 
-Create the corresponding lang files:
+For larger projects, consider a dedicated provider:
+
+```bash
+php artisan make:provider LlmsTxtServiceProvider
+```
+
+```php
+// bootstrap/providers.php
+return [
+    App\Providers\AppServiceProvider::class,
+    App\Providers\LlmsTxtServiceProvider::class,
+];
+```
+
+#### Output
+
+```markdown
+# My App
+
+> Short description
+
+## Services
+- [Web Development](https://example.com/services/web): Laravel & Vue.js
+```
+
+---
+
+## Fluent API
+
+`create()` and `make()` are identical static factories. Use `section()` and `entry()` for a more compact style:
+
+```php
+LlmsTxt::make()
+    ->title('My App')
+    ->section('Services', fn ($s) => $s
+        ->entry('Web Development', 'https://example.com/web', 'Laravel & Vue.js')
+        ->entry('Hosting', 'https://example.com/hosting', 'Managed hosting')
+    )
+    ->section('References', fn ($s) => $s
+        ->entry('Projects', 'https://example.com/references', 'All client projects')
+    );
+```
+
+`withDescription()` is available when using `Entry::create()` directly:
+
+```php
+Entry::create('API Reference', 'https://example.com/api')
+    ->withDescription('All endpoints, auth & rate limits');
+```
+
+> **Note:** `withDescription()` is not reachable via the `section()->entry()` shorthand, as that returns the `Section`, not the `Entry`. Pass the description as the third argument to `entry()` instead.
+
+### Conditional content with `when()`
+
+Both `LlmsTxt` and `Section` support `when()`, mirroring Laravel's own behavior:
+
+```php
+LlmsTxt::make()
+    ->title('My App')
+    ->section('Services', fn ($s) => $s
+        ->entry('Web Development', 'https://example.com/web')
+        ->when((bool) config('features.shop'), fn ($s) => $s
+            ->entry('Shop', 'https://example.com/shop')
+        )
+    )
+    ->when((bool) config('features.api'), fn ($llms) => $llms
+        ->section('API', fn ($s) => $s
+            ->entry('API Docs', 'https://example.com/api')
+        )
+    );
+```
+
+Pass a Closure as the first argument for lazy evaluation:
+
+```php
+->when(fn () => Feature::active('shop'), fn ($s) => $s->entry('Shop', '...'))
+```
+
+---
+
+## Localization
+
+A single binding covers all locales. The package sets the locale automatically before resolving your binding, so `__()` and `route()` always return the correct value.
+
+```php
+$this->app->bind(LlmsTxt::class, function () {
+    return LlmsTxt::create()
+        ->title(__('llms.title'))
+        ->description(__('llms.description'))
+        ->addSection(
+            Section::create(__('llms.sections.services'))
+                ->addEntry(Entry::create(
+                    __('llms.entries.web_dev'),
+                    route('services.web'),
+                    __('llms.entries.web_dev_desc'),
+                ))
+        );
+});
+```
+
+Language files:
 
 ```php
 // lang/en/llms.php
 return [
-    'title'       => 'SchaeferSoft',
-    'description' => 'Web development and software agency',
+    'title'       => 'My App',
+    'description' => 'Software agency',
     'sections'    => ['services' => 'Services'],
     'entries'     => [
         'web_dev'      => 'Web Development',
-        'web_dev_desc' => 'Modern web applications with Laravel and Vue.js',
-        'hosting'      => 'Hosting',
-        'hosting_desc' => 'Managed hosting and DevOps',
+        'web_dev_desc' => 'Modern web applications with Laravel & Vue.js',
     ],
 ];
 
 // lang/de/llms.php
 return [
-    'title'       => 'SchaeferSoft',
-    'description' => 'Webentwicklung und Softwareagentur',
+    'title'       => 'Meine App',
+    'description' => 'Software-Agentur',
     'sections'    => ['services' => 'Leistungen'],
     'entries'     => [
         'web_dev'      => 'Webentwicklung',
-        'web_dev_desc' => 'Moderne Webanwendungen mit Laravel und Vue.js',
-        'hosting'      => 'Hosting',
-        'hosting_desc' => 'Verwaltetes Hosting und DevOps',
+        'web_dev_desc' => 'Moderne Webanwendungen mit Laravel & Vue.js',
     ],
 ];
 ```
 
-That's it — one binding, all locales handled automatically.
-
-### Built-in locale-prefixed routes
-
-Enable locale-prefixed routes in `config/llms-txt.php`:
+### Locale-prefixed routes
 
 ```php
+// config/llms-txt.php
 'locales'         => ['de', 'en'],
 'localize_routes' => true,
 ```
 
-This registers `/{locale}/llms.txt` and `/{locale}/llms-full.txt` constrained to the locales you list:
+This registers `/de/llms.txt`, `/en/llms.txt` etc. automatically. Unknown locale segments return 404.
 
-- `/de/llms.txt` → sets locale to `de`, renders German content
-- `/en/llms.txt` → sets locale to `en`, renders English content
-- Any unknown locale segment returns `404`
-
-### Using with mcamara/laravel-localization
-
-If you use [mcamara/laravel-localization](https://github.com/mcamara/laravel-localization), disable automatic route
-registration and call `LlmsTxt::routes()` inside mcamara's route group:
+### With mcamara/laravel-localization
 
 ```php
 // config/llms-txt.php
-'route_enabled'   => true,
 'register_routes' => false,
-```
 
-```php
 // routes/web.php
-
-use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
-
 Route::group(
     ['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['localize']],
     function () {
@@ -447,100 +233,104 @@ Route::group(
 );
 ```
 
-mcamara's `localize` middleware sets `app()->getLocale()` before the controller runs, so `__()` inside your binding
-returns the right language automatically.
+---
 
-### Advanced: Closure-based fields
+## Manual route registration
 
-If you need to defer evaluation beyond container resolution (e.g. when using `singleton()` instead of `bind()`), all
-string fields accept a `Closure`:
+To apply custom middleware or cache headers, disable automatic registration and call `LlmsTxt::routes()` yourself:
 
 ```php
-LlmsTxt::create()
-    ->title(fn () => __('llms.title'))
-    ->addSection(
-        Section::create(fn () => __('llms.sections.services'))
-            ->addEntry(Entry::create(
-                fn () => __('llms.entries.web_dev'),
-                fn () => route('services.web'),
-            ))
-    );
+// config/llms-txt.php
+'register_routes' => false,
+
+// routes/web.php
+Route::middleware(['web', 'cache.headers:public;max_age=3600'])
+    ->group(function () {
+        LlmsTxt::routes(); // idempotent — safe to call more than once
+    });
 ```
 
-Closures are evaluated lazily each time `render()` is called, so they always reflect the current `app()->getLocale()`.
+---
 
-### Writing locale-specific static files
-
-```php
-LlmsTxt::create()
-    ->title('SchaeferSoft')
-    ->locale('de')
-    ->writeToDisk(); // writes to de/llms.txt
-```
-
-Use the Artisan command to generate for all locales at once:
+## Static file generation
 
 ```bash
+# Generates public/llms.txt
+php artisan llms:generate
+
+# Generates public/llms.txt + public/llms-full.txt
+php artisan llms:generate --full
+
+# Generates public/de/llms.txt
+php artisan llms:generate --locale=de
+
+# Generates for all configured locales
 php artisan llms:generate --all-locales
 php artisan llms:generate --all-locales --full
 ```
 
-## llms-full.txt
-
-The extended `llms-full.txt` format fetches the content of each entry URL and appends it below the entry. This gives AI
-models access to the full text of each linked page.
+Or write to disk programmatically:
 
 ```php
-$content = LlmsTxt::create()
-    ->title('SchaeferSoft')
-    ->addSection(
-        Section::create('Services')
-            ->addEntry(Entry::create('Web Development', 'https://schaefersoft.ch/services/web'))
-    )
-    ->renderFull(); // performs HTTP requests for each entry URL
+LlmsTxt::make()->title('My App')->writeToDisk();
+LlmsTxt::make()->title('My App')->writeToDisk('custom/path/llms.txt');
 
-// Or write directly to disk
-LlmsTxt::create()
-    ->title('SchaeferSoft')
-    ->writeFullToDisk();
+// With locale prefix → writes to de/llms.txt
+LlmsTxt::make()->title('My App')->locale('de')->writeToDisk();
 ```
 
-Entries whose URLs cannot be fetched are silently skipped.
+---
+
+## llms-full.txt
+
+The `llms-full.txt` format fetches the content of each entry URL and appends it below the entry. URLs that cannot be fetched are silently skipped.
+
+```php
+// As a string
+$content = LlmsTxt::create()
+    ->title('My App')
+    ->addSection(...)
+    ->renderFull();
+
+// Write directly to disk
+LlmsTxt::create()->title('My App')->writeFullToDisk();
+```
+
+---
 
 ## Caching
 
-When `cache_enabled` is `true` in config, the rendered output is cached using Laravel's cache system:
-
 ```php
-// Render and cache (uses the key 'llms-txt' by default)
-$content = LlmsTxt::create()->title('SchaeferSoft')->getCached();
+// Default cache key ('llms-txt')
+$content = LlmsTxt::create()->title('...')->getCached();
 
 // Custom cache key
-$content = LlmsTxt::create()->title('SchaeferSoft')->getCached('my-llms-cache-key');
+$content = LlmsTxt::create()->title('...')->getCached('my-key');
 
 // Flush the cache
-LlmsTxt::create()->flushCache('my-llms-cache-key');
+LlmsTxt::create()->flushCache('my-key');
 ```
+
+---
 
 ## Output format
 
 ### llms.txt
 
-```
+```markdown
 # Site Title
 
-> Site description/tagline
+> Description
 
 ## Section Name
-- [Entry Title](https://url.com): Entry description
-
-## Another Section
 - [Entry Title](https://url.com): Entry description
 ```
 
 ### llms-full.txt
 
-Same as `llms.txt`, but the fetched content of each URL is appended below its entry line.
+Same as `llms.txt`, but the fetched content of each URL is appended below its entry.
+
+---
 
 ## Testing
 
@@ -548,14 +338,6 @@ Same as `llms.txt`, but the fetched content of each URL is appended below its en
 composer test
 ```
 
-## Changelog
-
-Please see [CHANGELOG](CHANGELOG.md) for recent changes.
-
-## Contributing
-
-Please see [CONTRIBUTING](CONTRIBUTING.md) for guidelines.
-
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+MIT — see [LICENSE](LICENSE).
