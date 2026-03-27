@@ -29,21 +29,19 @@ class RouteRegistrar
     {
         $router = app('router');
 
-        if ($router->has('llms-txt.index')) {
-            return;
+        if (! $router->has('llms-txt.index')) {
+            $router->get(
+                config('llms-txt.llms_txt_route', '/llms.txt'),
+                [LlmsTxtController::class, 'index'],
+            )->name('llms-txt.index');
+
+            $router->get(
+                config('llms-txt.llms_full_txt_route', '/llms-full.txt'),
+                [LlmsTxtController::class, 'full'],
+            )->name('llms-txt.full');
         }
 
-        $router->get(
-            config('llms-txt.llms_txt_route', '/llms.txt'),
-            [LlmsTxtController::class, 'index'],
-        )->name('llms-txt.index');
-
-        $router->get(
-            config('llms-txt.llms_full_txt_route', '/llms-full.txt'),
-            [LlmsTxtController::class, 'full'],
-        )->name('llms-txt.full');
-
-        if (config('llms-txt.localize_routes', false)) {
+        if (config('llms-txt.localize_routes', false) && ! $router->has('llms-txt.localized.index')) {
             $locales = config('llms-txt.locales', []);
 
             $router->get('/{locale}/llms.txt', [LlmsTxtController::class, 'localizedIndex'])
@@ -54,5 +52,7 @@ class RouteRegistrar
                 ->whereIn('locale', $locales)
                 ->name('llms-txt.localized.full');
         }
+
+        $router->getRoutes()->refreshNameLookups();
     }
 }
