@@ -94,6 +94,8 @@ class LlmsTxt
 
     /**
      * Set the site title.
+     *
+     * @param  string|Closure(): string  $title
      */
     public function title(string|Closure $title): static
     {
@@ -104,6 +106,8 @@ class LlmsTxt
 
     /**
      * Set the site description / tagline.
+     *
+     * @param  string|Closure(): string  $description
      */
     public function description(string|Closure $description): static
     {
@@ -139,6 +143,8 @@ class LlmsTxt
      * (e.g. add entries). The Section is pushed to the document and $this
      * is returned for chaining.
      *
+     * @param  Closure(Section): void  $callback
+     *
      * @example
      * ```php
      * LlmsTxt::make()
@@ -163,6 +169,9 @@ class LlmsTxt
      * Mirrors Laravel's own when() behaviour: if $condition is truthy (or a
      * Closure that returns truthy), $callback is invoked with $this as its
      * argument. Always returns $this for chaining.
+     *
+     * @param  bool|Closure(): bool  $condition
+     * @param  Closure(self): void  $callback
      *
      * @example
      * ```php
@@ -472,6 +481,8 @@ class LlmsTxt
 
     /**
      * Resolve a value that may be a plain string or a Closure.
+     *
+     * @param  string|Closure(): string  $value
      */
     private function resolveValue(string|Closure $value): string
     {

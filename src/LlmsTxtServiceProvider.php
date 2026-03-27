@@ -7,7 +7,6 @@ namespace SchaeferSoft\LaravelLlmsTxt;
 use Illuminate\Support\ServiceProvider;
 use SchaeferSoft\LaravelLlmsTxt\Commands\GenerateLlmsTxtCommand;
 use SchaeferSoft\LaravelLlmsTxt\Http\Controllers\LlmsTxtController;
-use SchaeferSoft\LaravelLlmsTxt\RouteRegistrar;
 
 /**
  * Service provider for the laravel-llms-txt package.

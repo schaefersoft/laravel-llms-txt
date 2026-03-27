@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Events\Dispatcher;
 use Illuminate\Routing\Router;
 use SchaeferSoft\LaravelLlmsTxt\Entry;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
@@ -245,7 +246,7 @@ it('withDescription() returns Entry for chaining', function () {
 
 it('routes are not registered when register_routes is false', function () {
     // Swap router with a fresh one to test in isolation
-    $freshRouter = new Router(new \Illuminate\Events\Dispatcher);
+    $freshRouter = new Router(new Dispatcher);
     $originalRouter = app('router');
     app()->instance('router', $freshRouter);
 
@@ -262,7 +263,7 @@ it('routes are not registered when register_routes is false', function () {
 });
 
 it('LlmsTxt::routes() registers routes correctly when called manually', function () {
-    $freshRouter = new Router(new \Illuminate\Events\Dispatcher);
+    $freshRouter = new Router(new Dispatcher);
     $originalRouter = app('router');
     app()->instance('router', $freshRouter);
 
@@ -276,7 +277,7 @@ it('LlmsTxt::routes() registers routes correctly when called manually', function
 });
 
 it('LlmsTxt::routes() is idempotent — no duplicate routes on double call', function () {
-    $freshRouter = new Router(new \Illuminate\Events\Dispatcher);
+    $freshRouter = new Router(new Dispatcher);
     $originalRouter = app('router');
     app()->instance('router', $freshRouter);
 
