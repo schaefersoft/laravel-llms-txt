@@ -78,6 +78,21 @@ class LlmsTxt
     }
 
     /**
+     * Static factory method — alias for create().
+     *
+     * Both create() and make() remain and behave identically.
+     *
+     * @example
+     * ```php
+     * LlmsTxt::make()->title('My Site')->render();
+     * ```
+     */
+    public static function make(): static
+    {
+        return new static;
+    }
+
+    /**
      * Set the site title.
      */
     public function title(string|Closure $title): static
@@ -115,6 +130,82 @@ class LlmsTxt
         $this->sections->push($section);
 
         return $this;
+    }
+
+    /**
+     * Create a section inline and add it to the document via a closure.
+     *
+     * The closure receives the new Section instance and should configure it
+     * (e.g. add entries). The Section is pushed to the document and $this
+     * is returned for chaining.
+     *
+     * @example
+     * ```php
+     * LlmsTxt::make()
+     *     ->section('Services', fn ($s) => $s
+     *         ->entry('Web Dev', 'https://example.com/web', 'Laravel & Vue.js')
+     *         ->entry('Hosting', 'https://example.com/hosting')
+     *     );
+     * ```
+     */
+    public function section(string|Closure $title, Closure $callback): static
+    {
+        $section = Section::create($title);
+        $callback($section);
+        $this->sections->push($section);
+
+        return $this;
+    }
+
+    /**
+     * Conditionally apply a callback to this document.
+     *
+     * Mirrors Laravel's own when() behaviour: if $condition is truthy (or a
+     * Closure that returns truthy), $callback is invoked with $this as its
+     * argument. Always returns $this for chaining.
+     *
+     * @example
+     * ```php
+     * LlmsTxt::make()
+     *     ->section('Services', fn ($s) => $s->entry('Web Dev', 'https://...'))
+     *     ->when(config('features.api'), fn ($llms) => $llms
+     *         ->section('API', fn ($s) => $s->entry('Docs', 'https://...'))
+     *     );
+     * ```
+     */
+    public function when(bool|Closure $condition, Closure $callback): static
+    {
+        $result = $condition instanceof Closure ? ($condition)() : $condition;
+
+        if ($result) {
+            $callback($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Register the llms.txt routes on demand.
+     *
+     * Respects the `route_enabled`, `llms_txt_route`, `llms_full_txt_route`,
+     * and `localize_routes` config values. Safe to call multiple times —
+     * routes are only registered once (idempotent).
+     *
+     * Useful when `register_routes => false` in config and you want to place
+     * the routes inside a specific middleware group in routes/web.php.
+     *
+     * @example
+     * ```php
+     * // routes/web.php
+     * Route::middleware(['web', 'cache.headers:public;max_age=3600'])
+     *     ->group(function () {
+     *         LlmsTxt::routes();
+     *     });
+     * ```
+     */
+    public static function routes(): void
+    {
+        RouteRegistrar::register();
     }
 
     /**
