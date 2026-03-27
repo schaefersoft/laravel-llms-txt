@@ -71,6 +71,51 @@ class Section
     }
 
     /**
+     * Create and add an entry to this section using inline arguments.
+     *
+     * Shorthand for `addEntry(Entry::create(...))` that returns the Section
+     * for continued chaining.
+     *
+     * @example
+     * ```php
+     * Section::create('Services')
+     *     ->entry('Web Dev', 'https://example.com/web', 'Laravel & Vue.js')
+     *     ->entry('Hosting', 'https://example.com/hosting');
+     * ```
+     */
+    public function entry(string|Closure $title, string|Closure $url, string|Closure $description = ''): static
+    {
+        $this->entries->push(Entry::create($title, $url, $description));
+
+        return $this;
+    }
+
+    /**
+     * Conditionally apply a callback to this section.
+     *
+     * Mirrors Laravel's own when() behaviour: if $condition is truthy (or a
+     * Closure that returns truthy), $callback is invoked with $this as its
+     * argument. Always returns $this for chaining.
+     *
+     * @example
+     * ```php
+     * Section::create('Services')
+     *     ->entry('Web Dev', 'https://...')
+     *     ->when(config('features.shop'), fn ($s) => $s->entry('Shop', 'https://...'));
+     * ```
+     */
+    public function when(bool|Closure $condition, Closure $callback): static
+    {
+        $result = $condition instanceof Closure ? ($condition)() : $condition;
+
+        if ($result) {
+            $callback($this);
+        }
+
+        return $this;
+    }
+
+    /**
      * Get the section name, evaluating any Closure.
      */
     public function getName(): string
