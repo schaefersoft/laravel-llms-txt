@@ -56,13 +56,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer require "illuminate/support:^${{ matrix.laravel }}" \
-                           "illuminate/routing:^${{ matrix.laravel }}" \
-                           "illuminate/http:^${{ matrix.laravel }}" \
-                           "illuminate/console:^${{ matrix.laravel }}" \
-                           "illuminate/filesystem:^${{ matrix.laravel }}" \
-                           "illuminate/cache:^${{ matrix.laravel }}" \
-                           "orchestra/testbench:^${{ matrix.testbench }}" \
+          composer require "illuminate/support:${{ matrix.laravel }}" \
+                           "illuminate/routing:${{ matrix.laravel }}" \
+                           "illuminate/http:${{ matrix.laravel }}" \
+                           "illuminate/console:${{ matrix.laravel }}" \
+                           "illuminate/filesystem:${{ matrix.laravel }}" \
+                           "illuminate/cache:${{ matrix.laravel }}" \
+                           "orchestra/testbench:${{ matrix.testbench }}" \
                            --no-interaction --no-update
           composer update --no-interaction --prefer-dist --${{ matrix.stability }}
 
