@@ -85,3 +85,51 @@ it('fluent name setter accepts a closure', function () {
 
     expect($section->getName())->toBe('New Name From Closure');
 });
+
+// ---------------------------------------------------------------------------
+// Section::entries()
+// ---------------------------------------------------------------------------
+
+it('entries() maps items to entries via callback', function () {
+    $items = [
+        ['name' => 'Web Dev', 'url' => 'https://example.com/web'],
+        ['name' => 'Hosting', 'url' => 'https://example.com/hosting'],
+    ];
+
+    $section = Section::create('Services')
+        ->entries($items, fn ($item) => Entry::create($item['name'], $item['url']));
+
+    expect($section->getEntries())->toHaveCount(2);
+    expect($section->getEntries()->first()->getTitle())->toBe('Web Dev');
+    expect($section->getEntries()->last()->getTitle())->toBe('Hosting');
+});
+
+it('entries() returns Section for chaining', function () {
+    $section = Section::create('Test');
+    $result = $section->entries([], fn ($item) => Entry::create('', ''));
+
+    expect($result)->toBe($section);
+});
+
+it('entries() chains with other methods', function () {
+    $items = [['name' => 'From Collection', 'url' => 'https://example.com']];
+
+    $section = Section::create('Mixed')
+        ->entry('Manual', 'https://example.com/manual')
+        ->entries($items, fn ($item) => Entry::create($item['name'], $item['url']))
+        ->entry('After', 'https://example.com/after');
+
+    expect($section->getEntries())->toHaveCount(3);
+});
+
+it('entries() accepts any iterable', function () {
+    $generator = (function () {
+        yield ['name' => 'Item A', 'url' => 'https://a.com'];
+        yield ['name' => 'Item B', 'url' => 'https://b.com'];
+    })();
+
+    $section = Section::create('Test')
+        ->entries($generator, fn ($item) => Entry::create($item['name'], $item['url']));
+
+    expect($section->getEntries())->toHaveCount(2);
+});

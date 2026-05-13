@@ -62,6 +62,11 @@ class LlmsTxt
     protected Collection $sections;
 
     /**
+     * The registered configure callback, or null when none is set.
+     */
+    private static ?Closure $configurator = null;
+
+    /**
      * Create a new LlmsTxt instance.
      */
     public function __construct()
@@ -78,7 +83,73 @@ class LlmsTxt
     }
 
     /**
+     * Static factory method — alias for create().
+     */
+    public static function make(): static
+    {
+        return new static;
+    }
+
+    /**
+     * Register a callback that builds the document on every resolve().
+     *
+     * The callback receives a fresh LlmsTxt instance. Call the fluent builder
+     * methods on it — the configured instance is returned by resolve().
+     *
+     * Called on every resolve so closures inside title/description/section names
+     * are always evaluated with the current locale active.
+     *
+     * @param  Closure(static): void  $callback
+     *
+     * @example
+     * ```php
+     * // AppServiceProvider::boot()
+     * LlmsTxt::configure(fn ($llms) => $llms
+     *     ->title('My App')
+     *     ->section('Services', fn ($s) => $s
+     *         ->entry('Web Dev', route('services.web'), 'Laravel & Vue.js')
+     *     )
+     * );
+     * ```
+     */
+    public static function configure(Closure $callback): void
+    {
+        static::$configurator = $callback;
+    }
+
+    /**
+     * Resolve the document instance.
+     *
+     * Returns the instance built by the configure() callback when one is
+     * registered. Falls back to AutoResolver (builds from registered GET routes)
+     * when no callback has been set.
+     */
+    public static function resolve(): static
+    {
+        if (static::$configurator !== null) {
+            $instance = new static;
+            (static::$configurator)($instance);
+
+            return $instance;
+        }
+
+        return AutoResolver::resolve();
+    }
+
+    /**
+     * Clear the registered configure callback.
+     *
+     * Primarily useful for test isolation.
+     */
+    public static function clearConfigure(): void
+    {
+        static::$configurator = null;
+    }
+
+    /**
      * Set the site title.
+     *
+     * @param  string|Closure(): string  $title
      */
     public function title(string|Closure $title): static
     {
@@ -89,6 +160,8 @@ class LlmsTxt
 
     /**
      * Set the site description / tagline.
+     *
+     * @param  string|Closure(): string  $description
      */
     public function description(string|Closure $description): static
     {
@@ -115,6 +188,87 @@ class LlmsTxt
         $this->sections->push($section);
 
         return $this;
+    }
+
+    /**
+     * Create a section inline and add it to the document via a closure.
+     *
+     * The closure receives the new Section instance and should configure it
+     * (e.g. add entries). The Section is pushed to the document and $this
+     * is returned for chaining.
+     *
+     * @param  Closure(Section): void  $callback
+     *
+     * @example
+     * ```php
+     * LlmsTxt::make()
+     *     ->section('Services', fn ($s) => $s
+     *         ->entry('Web Dev', 'https://example.com/web', 'Laravel & Vue.js')
+     *         ->entry('Hosting', 'https://example.com/hosting')
+     *     );
+     * ```
+     */
+    public function section(string|Closure $title, Closure $callback): static
+    {
+        $section = Section::create($title);
+        $callback($section);
+        $this->sections->push($section);
+
+        return $this;
+    }
+
+    /**
+     * Conditionally apply a callback to this document.
+     *
+     * Mirrors Laravel's own when() behaviour: if $condition is truthy (or a
+     * Closure that returns truthy), $callback is invoked with $this as its
+     * argument. Always returns $this for chaining.
+     *
+     * @param  bool|Closure(): bool  $condition
+     * @param  Closure(self): void  $callback
+     *
+     * @example
+     * ```php
+     * LlmsTxt::make()
+     *     ->section('Services', fn ($s) => $s->entry('Web Dev', 'https://...'))
+     *     ->when(config('features.api'), fn ($llms) => $llms
+     *         ->section('API', fn ($s) => $s->entry('Docs', 'https://...'))
+     *     );
+     * ```
+     */
+    public function when(bool|Closure $condition, Closure $callback): static
+    {
+        $result = $condition instanceof Closure ? ($condition)() : $condition;
+
+        if ($result) {
+            $callback($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Register the llms.txt routes on demand.
+     *
+     * Respects the `route_enabled`, `llms_txt_route`, `llms_full_txt_route`,
+     * and `localize_routes` config values. Safe to call multiple times —
+     * routes are only registered once (idempotent).
+     *
+     * Useful when `register_routes => false` in config and you want to place
+     * the routes inside a specific middleware group in routes/web.php.
+     *
+     * @example
+     * ```php
+     * // routes/web.php
+     * Route::middleware(['web', 'cache.headers:public;max_age=3600'])
+     *     ->group(function () {
+     *         LlmsTxt::routes();
+     *     });
+     * ```
+     */
+    public static function routes(): void
+    {
+        RouteRegistrar::register();
     }
 
     /**
@@ -381,6 +535,8 @@ class LlmsTxt
 
     /**
      * Resolve a value that may be a plain string or a Closure.
+     *
+     * @param  string|Closure(): string  $value
      */
     private function resolveValue(string|Closure $value): string
     {

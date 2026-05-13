@@ -64,18 +64,12 @@ class LlmsTxtController extends Controller
     }
 
     /**
-     * Resolve the LlmsTxt instance from the service container.
-     *
-     * Uses the bound instance if one has been registered, otherwise
-     * falls back to a fresh empty instance.
+     * Resolve the LlmsTxt instance via the registered configure() callback,
+     * or fall back to AutoResolver when none is set.
      */
     protected function resolve(): LlmsTxt
     {
-        if (app()->bound(LlmsTxt::class)) {
-            return app(LlmsTxt::class);
-        }
-
-        return new LlmsTxt;
+        return LlmsTxt::resolve();
     }
 
     /**

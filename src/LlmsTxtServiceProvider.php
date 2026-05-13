@@ -6,7 +6,6 @@ namespace SchaeferSoft\LaravelLlmsTxt;
 
 use Illuminate\Support\ServiceProvider;
 use SchaeferSoft\LaravelLlmsTxt\Commands\GenerateLlmsTxtCommand;
-use SchaeferSoft\LaravelLlmsTxt\Http\Controllers\LlmsTxtController;
 
 /**
  * Service provider for the laravel-llms-txt package.
@@ -38,7 +37,7 @@ class LlmsTxtServiceProvider extends ServiceProvider
             ]);
         }
 
-        if (config('llms-txt.route_enabled', true)) {
+        if (config('llms-txt.route_enabled', true) && config('llms-txt.register_routes', true)) {
             $this->registerRoutes();
         }
     }
@@ -57,48 +56,11 @@ class LlmsTxtServiceProvider extends ServiceProvider
     /**
      * Register the dynamic routes for llms.txt and llms-full.txt.
      *
-     * When `localize_routes` is enabled, locale-prefixed variants are
-     * also registered (e.g. `/de/llms.txt`, `/en/llms.txt`).
+     * Delegates to RouteRegistrar::register() which is idempotent and shared
+     * with LlmsTxt::routes() to avoid duplication.
      */
     protected function registerRoutes(): void
     {
-        $router = $this->app['router'];
-
-        $router->get(
-            config('llms-txt.llms_txt_route', '/llms.txt'),
-            [LlmsTxtController::class, 'index'],
-        )->name('llms-txt.index');
-
-        $router->get(
-            config('llms-txt.llms_full_txt_route', '/llms-full.txt'),
-            [LlmsTxtController::class, 'full'],
-        )->name('llms-txt.full');
-
-        if (config('llms-txt.localize_routes', false)) {
-            $this->registerLocalizedRoutes($router);
-        }
-    }
-
-    /**
-     * Register locale-prefixed route variants using a single parameterised route.
-     *
-     * Registers:
-     * - `/{locale}/llms.txt`
-     * - `/{locale}/llms-full.txt`
-     *
-     * The `{locale}` segment is constrained to the values in `llms-txt.locales`,
-     * so any unknown locale segment results in a 404.
-     */
-    protected function registerLocalizedRoutes(mixed $router): void
-    {
-        $locales = config('llms-txt.locales', []);
-
-        $router->get('/{locale}/llms.txt', [LlmsTxtController::class, 'localizedIndex'])
-            ->whereIn('locale', $locales)
-            ->name('llms-txt.localized.index');
-
-        $router->get('/{locale}/llms-full.txt', [LlmsTxtController::class, 'localizedFull'])
-            ->whereIn('locale', $locales)
-            ->name('llms-txt.localized.full');
+        RouteRegistrar::register();
     }
 }

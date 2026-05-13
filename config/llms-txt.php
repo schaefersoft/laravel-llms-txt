@@ -21,6 +21,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Manual Route Registration
+    |--------------------------------------------------------------------------
+    |
+    | When set to false, the service provider will NOT register the llms.txt
+    | routes automatically during boot. You can then register them yourself
+    | by calling LlmsTxt::routes() inside a route group of your choice — for
+    | example to apply specific middleware or a custom URL prefix.
+    |
+    | Example (routes/web.php):
+    |
+    |   use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
+    |
+    |   Route::middleware(['web', 'cache.headers:public;max_age=3600'])
+    |       ->group(function () {
+    |           LlmsTxt::routes();
+    |       });
+    |
+    */
+
+    'register_routes' => true,
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Configuration
     |--------------------------------------------------------------------------
     |
