@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace SchaeferSoft\LaravelLlmsTxt\Commands;
 
 use Illuminate\Console\Command;
-use SchaeferSoft\LaravelLlmsTxt\AutoResolver;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
 
 /**
@@ -143,18 +142,11 @@ class GenerateLlmsTxtCommand extends Command
     }
 
     /**
-     * Resolve the LlmsTxt instance from the service container.
-     *
-     * Uses the manually bound instance if one has been registered — it always
-     * takes precedence. Otherwise falls back to AutoResolver, which builds a
-     * document automatically from all registered GET routes.
+     * Resolve the LlmsTxt instance via the registered configure() callback,
+     * or fall back to AutoResolver when none is set.
      */
     protected function resolve(): LlmsTxt
     {
-        if (app()->bound(LlmsTxt::class)) {
-            return app(LlmsTxt::class);
-        }
-
-        return AutoResolver::resolve();
+        return LlmsTxt::resolve();
     }
 }

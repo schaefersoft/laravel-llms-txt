@@ -71,14 +71,25 @@ it('excludes routes starting with internal prefixes', function () {
     expect($entryUrls)->not->toContain(url('/telescope/requests'));
 });
 
-it('manual binding takes precedence over auto-resolving in the controller', function () {
+it('configure() takes precedence over auto-resolving in the controller', function () {
     config()->set('llms-txt.cache_enabled', false);
 
-    app()->bind(LlmsTxt::class, fn () => LlmsTxt::create()->title('Explicit Manual Binding'));
+    LlmsTxt::configure(fn ($llms) => $llms->title('Explicit Configuration'));
 
     $this->get('/llms.txt')
         ->assertStatus(200)
-        ->assertSee('# Explicit Manual Binding', false);
+        ->assertSee('# Explicit Configuration', false);
+});
+
+it('excludes routes with URI parameters from auto-resolved entries', function () {
+    app('router')->get('/services/{service:slug}', fn () => 'test')->name('services.show');
+    app('router')->get('/blog/{post}', fn () => 'test')->name('blog.show');
+
+    $llmsTxt = AutoResolver::resolve();
+
+    $entryUrls = $llmsTxt->getSections()->first()->getEntries()->map(fn ($e) => $e->getUrl());
+    expect($entryUrls)->not->toContain(url('/services/{service:slug}'));
+    expect($entryUrls)->not->toContain(url('/blog/{post}'));
 });
 
 it('falls back to auto-resolved content when no manual binding exists', function () {

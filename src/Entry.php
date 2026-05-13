@@ -94,26 +94,6 @@ class Entry
     }
 
     /**
-     * Set the description fluently (alias for description()).
-     *
-     * Primarily useful in the programmatic `Entry::create()->withDescription(...)`
-     * style. When using the `section()->entry()` shorthand, the Section is returned,
-     * not the Entry, so this method is not reachable from that chain.
-     *
-     * @example
-     * ```php
-     * Entry::create('API Reference', 'https://example.com/api')
-     *     ->withDescription('Complete reference for all endpoints, auth, and rate limits.');
-     * ```
-     */
-    public function withDescription(string|Closure $description): static
-    {
-        $this->description = $description;
-
-        return $this;
-    }
-
-    /**
      * Get the display title, evaluating any Closure.
      */
     public function getTitle(): string

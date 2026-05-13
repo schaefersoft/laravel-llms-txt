@@ -208,36 +208,51 @@ it('when() on Section returns Section for chaining', function () {
 });
 
 // ---------------------------------------------------------------------------
-// Entry::withDescription()
+// LlmsTxt::configure() and ::resolve()
 // ---------------------------------------------------------------------------
 
-it('withDescription() sets the description and returns Entry for chaining', function () {
-    $entry = Entry::create('API Reference', 'https://example.com/api')
-        ->withDescription('Complete reference for all endpoints.');
+it('configure() registers a callback used by resolve()', function () {
+    LlmsTxt::configure(fn ($llms) => $llms->title('Configured Title'));
 
-    expect($entry->getDescription())->toBe('Complete reference for all endpoints.');
+    expect(LlmsTxt::resolve()->getTitle())->toBe('Configured Title');
 });
 
-it('withDescription() renders correctly', function () {
-    $output = Entry::create('Docs', 'https://example.com/docs')
-        ->withDescription('All the documentation.')
-        ->render();
-
-    expect($output)->toBe('- [Docs](https://example.com/docs): All the documentation.');
+it('resolve() falls back to AutoResolver when no configure() is set', function () {
+    expect(LlmsTxt::resolve())->toBeInstanceOf(LlmsTxt::class);
 });
 
-it('withDescription() accepts a Closure', function () {
-    $entry = Entry::create('Test', 'https://example.com')
-        ->withDescription(fn () => 'Dynamic description');
+it('configure() callback receives a fresh instance on each resolve()', function () {
+    $calls = 0;
 
-    expect($entry->getDescription())->toBe('Dynamic description');
+    LlmsTxt::configure(function ($llms) use (&$calls) {
+        $calls++;
+        $llms->title("Call {$calls}");
+    });
+
+    LlmsTxt::resolve();
+    LlmsTxt::resolve();
+
+    expect($calls)->toBe(2);
 });
 
-it('withDescription() returns Entry for chaining', function () {
-    $entry = Entry::create('Test', 'https://example.com');
-    $result = $entry->withDescription('desc');
+it('clearConfigure() removes the registered callback', function () {
+    LlmsTxt::configure(fn ($llms) => $llms->title('Should not persist'));
+    LlmsTxt::clearConfigure();
 
-    expect($result)->toBe($entry);
+    $resolved = LlmsTxt::resolve();
+    expect($resolved->getTitle())->not->toBe('Should not persist');
+});
+
+it('configure() evaluates the callback with the current locale active', function () {
+    LlmsTxt::configure(fn ($llms) => $llms
+        ->title(app()->getLocale() === 'de' ? 'Titel DE' : 'Title EN')
+    );
+
+    app()->setLocale('de');
+    expect(LlmsTxt::resolve()->getTitle())->toBe('Titel DE');
+
+    app()->setLocale('en');
+    expect(LlmsTxt::resolve()->getTitle())->toBe('Title EN');
 });
 
 // ---------------------------------------------------------------------------

@@ -59,6 +59,10 @@ class AutoResolver
                 continue;
             }
 
+            if (str_contains($uri, '{')) {
+                continue;
+            }
+
             foreach (self::INTERNAL_PREFIXES as $prefix) {
                 if (str_starts_with($uri, $prefix)) {
                     continue 2;

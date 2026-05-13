@@ -6,7 +6,6 @@ namespace SchaeferSoft\LaravelLlmsTxt\Http\Controllers;
 
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
-use SchaeferSoft\LaravelLlmsTxt\AutoResolver;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
 
 /**
@@ -65,19 +64,12 @@ class LlmsTxtController extends Controller
     }
 
     /**
-     * Resolve the LlmsTxt instance from the service container.
-     *
-     * Uses the manually bound instance if one has been registered — it always
-     * takes precedence. Otherwise falls back to AutoResolver, which builds a
-     * document automatically from all registered GET routes.
+     * Resolve the LlmsTxt instance via the registered configure() callback,
+     * or fall back to AutoResolver when none is set.
      */
     protected function resolve(): LlmsTxt
     {
-        if (app()->bound(LlmsTxt::class)) {
-            return app(LlmsTxt::class);
-        }
-
-        return AutoResolver::resolve();
+        return LlmsTxt::resolve();
     }
 
     /**

@@ -6,7 +6,6 @@ namespace SchaeferSoft\LaravelLlmsTxt;
 
 use Illuminate\Support\ServiceProvider;
 use SchaeferSoft\LaravelLlmsTxt\Commands\GenerateLlmsTxtCommand;
-use SchaeferSoft\LaravelLlmsTxt\Http\Controllers\LlmsTxtController;
 
 /**
  * Service provider for the laravel-llms-txt package.
@@ -63,26 +62,5 @@ class LlmsTxtServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         RouteRegistrar::register();
-    }
-
-    /**
-     * Register locale-prefixed route variants using a single parameterised route.
-     *
-     * Kept for backwards compatibility with subclasses that may override this
-     * method. Route registration now happens via RouteRegistrar::register().
-     *
-     * @deprecated Registration is handled by RouteRegistrar::register() internally.
-     */
-    protected function registerLocalizedRoutes(mixed $router): void
-    {
-        $locales = config('llms-txt.locales', []);
-
-        $router->get('/{locale}/llms.txt', [LlmsTxtController::class, 'localizedIndex'])
-            ->whereIn('locale', $locales)
-            ->name('llms-txt.localized.index');
-
-        $router->get('/{locale}/llms-full.txt', [LlmsTxtController::class, 'localizedFull'])
-            ->whereIn('locale', $locales)
-            ->name('llms-txt.localized.full');
     }
 }

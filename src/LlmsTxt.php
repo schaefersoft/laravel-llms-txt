@@ -62,6 +62,11 @@ class LlmsTxt
     protected Collection $sections;
 
     /**
+     * The registered configure callback, or null when none is set.
+     */
+    private static ?Closure $configurator = null;
+
+    /**
      * Create a new LlmsTxt instance.
      */
     public function __construct()
@@ -79,17 +84,66 @@ class LlmsTxt
 
     /**
      * Static factory method — alias for create().
-     *
-     * Both create() and make() remain and behave identically.
-     *
-     * @example
-     * ```php
-     * LlmsTxt::make()->title('My Site')->render();
-     * ```
      */
     public static function make(): static
     {
         return new static;
+    }
+
+    /**
+     * Register a callback that builds the document on every resolve().
+     *
+     * The callback receives a fresh LlmsTxt instance. Call the fluent builder
+     * methods on it — the configured instance is returned by resolve().
+     *
+     * Called on every resolve so closures inside title/description/section names
+     * are always evaluated with the current locale active.
+     *
+     * @param  Closure(static): void  $callback
+     *
+     * @example
+     * ```php
+     * // AppServiceProvider::boot()
+     * LlmsTxt::configure(fn ($llms) => $llms
+     *     ->title('My App')
+     *     ->section('Services', fn ($s) => $s
+     *         ->entry('Web Dev', route('services.web'), 'Laravel & Vue.js')
+     *     )
+     * );
+     * ```
+     */
+    public static function configure(Closure $callback): void
+    {
+        static::$configurator = $callback;
+    }
+
+    /**
+     * Resolve the document instance.
+     *
+     * Returns the instance built by the configure() callback when one is
+     * registered. Falls back to AutoResolver (builds from registered GET routes)
+     * when no callback has been set.
+     */
+    public static function resolve(): static
+    {
+        if (static::$configurator !== null) {
+            $instance = new static;
+            (static::$configurator)($instance);
+
+            return $instance;
+        }
+
+        return AutoResolver::resolve();
+    }
+
+    /**
+     * Clear the registered configure callback.
+     *
+     * Primarily useful for test isolation.
+     */
+    public static function clearConfigure(): void
+    {
+        static::$configurator = null;
     }
 
     /**

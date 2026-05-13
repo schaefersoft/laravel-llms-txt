@@ -5,10 +5,18 @@ declare(strict_types=1);
 namespace SchaeferSoft\LaravelLlmsTxt\Tests;
 
 use Orchestra\Testbench\TestCase as Orchestra;
+use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxtServiceProvider;
 
 class TestCase extends Orchestra
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        LlmsTxt::clearConfigure();
+    }
+
     protected function getPackageProviders($app): array
     {
         return [

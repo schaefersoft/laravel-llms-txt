@@ -91,6 +91,33 @@ class Section
     }
 
     /**
+     * Map a collection of items into entries via a callback and add them all.
+     *
+     * The callback receives each item and must return an Entry instance.
+     *
+     * @param  iterable<mixed>  $items
+     * @param  Closure(mixed): Entry  $callback
+     *
+     * @example
+     * ```php
+     * Section::create('Services')
+     *     ->entries(Service::published()->get(), fn ($service) => Entry::create(
+     *         $service->name,
+     *         route('services.show', $service),
+     *         $service->tagline,
+     *     ));
+     * ```
+     */
+    public function entries(iterable $items, Closure $callback): static
+    {
+        foreach ($items as $item) {
+            $this->entries->push($callback($item));
+        }
+
+        return $this;
+    }
+
+    /**
      * Conditionally apply a callback to this section.
      *
      * Mirrors Laravel's own when() behaviour: if $condition is truthy (or a

@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-use SchaeferSoft\LaravelLlmsTxt\Entry;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxtServiceProvider;
-use SchaeferSoft\LaravelLlmsTxt\Section;
 
 it('registers the llms.txt route', function () {
     $this->get('/llms.txt')
@@ -19,26 +17,22 @@ it('registers the llms-full.txt route', function () {
         ->assertHeader('Content-Type', 'text/plain; charset=utf-8');
 });
 
-it('serves content from bound LlmsTxt instance', function () {
+it('serves content from configured LlmsTxt instance', function () {
     config()->set('llms-txt.cache_enabled', false);
 
-    app()->bind(LlmsTxt::class, function () {
-        return LlmsTxt::create()
-            ->title('Bound Site')
-            ->description('Bound from container')
-            ->addSection(
-                Section::create('Docs')
-                    ->addEntry(Entry::create('Getting Started', 'https://example.com/docs'))
-            );
-    });
+    LlmsTxt::configure(fn ($llms) => $llms
+        ->title('Configured Site')
+        ->description('Set via configure()')
+        ->section('Docs', fn ($s) => $s
+            ->entry('Getting Started', 'https://example.com/docs')
+        )
+    );
 
     $this->get('/llms.txt')
         ->assertStatus(200)
-        ->assertSee('# Bound Site', false)
-        ->assertSee('> Bound from container', false)
+        ->assertSee('# Configured Site', false)
+        ->assertSee('> Set via configure()', false)
         ->assertSee('## Docs', false);
-
-    app()->forgetInstance(LlmsTxt::class);
 });
 
 it('registers localized routes when localize_routes is enabled', function () {
@@ -71,12 +65,9 @@ it('sets the application locale when a localized route is hit', function () {
     config()->set('llms-txt.locales', ['de', 'en']);
     config()->set('llms-txt.cache_enabled', false);
 
-    // Simulates the recommended pattern: plain __() / helpers inside bind(),
-    // re-evaluated each time the container resolves the instance.
-    app()->bind(LlmsTxt::class, function () {
-        return LlmsTxt::create()
-            ->title(app()->getLocale() === 'de' ? 'Titel DE' : 'Title EN');
-    });
+    LlmsTxt::configure(fn ($llms) => $llms
+        ->title(app()->getLocale() === 'de' ? 'Titel DE' : 'Title EN')
+    );
 
     $provider = new LlmsTxtServiceProvider(app());
     $provider->boot();
@@ -88,8 +79,6 @@ it('sets the application locale when a localized route is hit', function () {
     $this->get('/en/llms.txt')
         ->assertStatus(200)
         ->assertSee('# Title EN', false);
-
-    app()->forgetInstance(LlmsTxt::class);
 });
 
 it('merges the default config', function () {

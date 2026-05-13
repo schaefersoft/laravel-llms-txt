@@ -1,4 +1,8 @@
-# Laravel LLMs.txt
+# laravel-llms-txt
+
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/schaefersoft/laravel-llms-txt.svg?style=flat-square)](https://packagist.org/packages/schaefersoft/laravel-llms-txt)
+[![Tests](https://img.shields.io/github/actions/workflow/status/schaefersoft/laravel-llms-txt/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/schaefersoft/laravel-llms-txt/actions/workflows/run-tests.yml)
+[![Total Downloads](https://img.shields.io/packagist/dt/schaefersoft/laravel-llms-txt.svg?style=flat-square)](https://packagist.org/packages/schaefersoft/laravel-llms-txt)
 
 Automatically generate `llms.txt` and `llms-full.txt` files for your Laravel application — helping AI models understand your website, just like `sitemap.xml` helps search engines.
 
@@ -56,26 +60,25 @@ That's it. The package is auto-discovered by Laravel, and `/llms.txt` is availab
 
 The package works in two modes:
 
-1. **Zero-config** — Without any setup, `/llms.txt` is automatically generated from all registered `GET` routes in your application. Internal routes (Telescope, Horizon, Debugbar) are excluded.
+1. **Zero-config** — Without any setup, `/llms.txt` is automatically generated from all registered `GET` routes in your application. Internal routes (Telescope, Horizon, Debugbar) and routes with URI parameters are excluded.
 
-2. **Custom definition** (recommended) — Bind your own `LlmsTxt` instance in a service provider to have full control over the output. A manual binding always takes precedence over auto-generation.
+2. **Custom definition** (recommended) — Register a configure callback to have full control over the output. It always takes precedence over auto-generation.
 
 ```php
 // app/Providers/AppServiceProvider.php
 
 use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
 
-public function register(): void
+public function boot(): void
 {
-    $this->app->bind(LlmsTxt::class, function () {
-        return LlmsTxt::make()
-            ->title('My App')
-            ->description('A short description of what this site offers.')
-            ->section('Services', fn ($s) => $s
-                ->entry('Web Development', 'https://example.com/web', 'Laravel & Vue.js')
-                ->entry('Hosting', 'https://example.com/hosting', 'Managed hosting')
-            );
-    });
+    LlmsTxt::configure(fn ($llms) => $llms
+        ->title('My App')
+        ->description('A short description of what this site offers.')
+        ->section('Services', fn ($s) => $s
+            ->entry('Web Development', 'https://example.com/web', 'Laravel & Vue.js')
+            ->entry('Hosting', 'https://example.com/hosting', 'Managed hosting')
+        )
+    );
 }
 ```
 
@@ -134,13 +137,6 @@ LlmsTxt::make()
     ->addSection($section);
 ```
 
-The `Entry::create()` method also supports a fluent `withDescription()` call:
-
-```php
-Entry::create('API Reference', 'https://example.com/api')
-    ->withDescription('All endpoints, auth & rate limits');
-```
-
 ### Fluent Shorthand
 
 For a more compact style, use `section()` and `entry()` directly on the builder:
@@ -160,6 +156,35 @@ LlmsTxt::make()
 > `create()` and `make()` are identical — use whichever you prefer.
 
 > **Note:** The `entry()` shorthand returns the `Section`, not the `Entry`. To use `withDescription()`, use `Entry::create()` directly or pass the description as the third argument to `entry()`.
+
+### Model-Based Entries
+
+Use `entries()` on a section to map a collection of models (or any iterable) into entries. The callback receives each item and must return an `Entry` instance.
+
+```php
+LlmsTxt::configure(fn ($llms) => $llms
+    ->title('My App')
+    ->section('Services', fn ($s) => $s
+        ->entries(Service::published()->get(), fn ($service) => Entry::create(
+            $service->name,
+            route('services.show', $service),
+            $service->tagline,
+        ))
+    )
+);
+```
+
+You can combine `entry()` and `entries()` freely in the same section:
+
+```php
+->section('Blog', fn ($s) => $s
+    ->entry('All Posts', route('blog.index'))
+    ->entries(Post::featured()->get(), fn ($post) => Entry::create(
+        $post->title,
+        route('blog.show', $post),
+    ))
+)
+```
 
 ### Conditional Content
 
@@ -249,22 +274,20 @@ Route::middleware(['web', 'cache.headers:public;max_age=3600'])
 
 ### Translating Content
 
-A single container binding covers all locales. The package sets the application locale before resolving your binding, so `__()` and `route()` return the correct values automatically.
+A single configure callback covers all locales. The package sets the application locale before invoking your callback, so `__()` and `route()` return the correct values automatically.
 
 ```php
-$this->app->bind(LlmsTxt::class, function () {
-    return LlmsTxt::create()
-        ->title(__('llms.title'))
-        ->description(__('llms.description'))
-        ->addSection(
-            Section::create(__('llms.sections.services'))
-                ->addEntry(Entry::create(
-                    __('llms.entries.web_dev'),
-                    route('services.web'),
-                    __('llms.entries.web_dev_desc'),
-                ))
-        );
-});
+LlmsTxt::configure(fn ($llms) => $llms
+    ->title(__('llms.title'))
+    ->description(__('llms.description'))
+    ->section(__('llms.sections.services'), fn ($s) => $s
+        ->entry(
+            __('llms.entries.web_dev'),
+            route('services.web'),
+            __('llms.entries.web_dev_desc'),
+        )
+    )
+);
 ```
 
 Create your language files as usual:
