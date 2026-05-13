@@ -17,16 +17,12 @@ jobs:
         include:
           - laravel: '10.*'
             testbench: '8.*'
-            pest-plugin: '2.*'
           - laravel: '11.*'
             testbench: '9.*'
-            pest-plugin: '2.*'
           - laravel: '12.*'
             testbench: '10.*'
-            pest-plugin: '3.*'
           - laravel: '13.*'
             testbench: '11.*'
-            pest-plugin: '4.*'
         exclude:
           - laravel: '10.*'
             php: '8.4'
@@ -61,7 +57,6 @@ jobs:
       - name: Install dependencies
         run: |
           composer require "orchestra/testbench:${{ matrix.testbench }}" \
-                           "pestphp/pest-plugin-laravel:${{ matrix.pest-plugin }}" \
                            --no-interaction --no-update
           composer update --no-interaction --prefer-dist --${{ matrix.stability }}
 
