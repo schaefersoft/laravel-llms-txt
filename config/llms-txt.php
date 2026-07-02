@@ -90,6 +90,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Excluded Routes (Auto-Resolver)
+    |--------------------------------------------------------------------------
+    |
+    | When no LlmsTxt::configure() callback is registered, the document is
+    | built automatically from all registered GET routes. Use this list to
+    | exclude routes from that output. Patterns are matched against both the
+    | route URI (without leading slash) and the route name, and support the
+    | `*` wildcard.
+    |
+    | Example: ['admin/*', 'legal/imprint', 'internal.*']
+    |
+    */
+
+    'exclude_routes' => [],
+
+    /*
+    |--------------------------------------------------------------------------
     | Localization
     |--------------------------------------------------------------------------
     |

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SchaeferSoft\LaravelLlmsTxt;
 
 use Illuminate\Routing\Route;
+use Illuminate\Support\Str;
 
 /**
  * Builds a LlmsTxt instance automatically from all registered GET routes.
@@ -29,9 +30,10 @@ class AutoResolver
     /**
      * Build a LlmsTxt instance from all registered GET routes.
      *
-     * Collects all GET routes, excludes the llms.txt routes themselves and
-     * routes that are clearly internal, then maps each remaining route into
-     * an Entry grouped under a single "Routes" section.
+     * Collects all GET routes, excludes the llms.txt routes themselves,
+     * routes that are clearly internal, and routes matching the
+     * `llms-txt.exclude_routes` config patterns, then maps each remaining
+     * route into an Entry grouped under a single "Routes" section.
      *
      * The entry title is the route name when available, otherwise the URI.
      * The entry URL is generated via `url($route->uri())`.
@@ -40,6 +42,11 @@ class AutoResolver
     {
         $llmsUri = ltrim(config('llms-txt.llms_txt_route', '/llms.txt'), '/');
         $llmsFullUri = ltrim(config('llms-txt.llms_full_txt_route', '/llms-full.txt'), '/');
+
+        $excludePatterns = array_map(
+            fn (string $pattern): string => ltrim($pattern, '/'),
+            (array) config('llms-txt.exclude_routes', []),
+        );
 
         $section = Section::create('Routes');
 
@@ -69,6 +76,10 @@ class AutoResolver
                 }
             }
 
+            if (self::isExcluded($route, $uri, $excludePatterns)) {
+                continue;
+            }
+
             $title = $route->getName() ?? $uri;
 
             $section->addEntry(
@@ -79,5 +90,28 @@ class AutoResolver
         return LlmsTxt::create()
             ->title(config('app.name', 'Laravel'))
             ->addSection($section);
+    }
+
+    /**
+     * Determine whether a route matches one of the configured exclude patterns.
+     *
+     * Patterns are matched against both the route URI (without leading slash)
+     * and the route name, and support the `*` wildcard via Str::is().
+     *
+     * @param  list<string>  $patterns
+     */
+    private static function isExcluded(Route $route, string $uri, array $patterns): bool
+    {
+        if ($patterns === []) {
+            return false;
+        }
+
+        if (Str::is($patterns, $uri)) {
+            return true;
+        }
+
+        $name = $route->getName();
+
+        return $name !== null && Str::is($patterns, $name);
     }
 }

@@ -24,6 +24,7 @@ Built according to the [llmstxt.org](https://llmstxt.org/) specification.
 - [Configuration](#configuration)
 - [Routes](#routes)
   - [Automatic Route Registration](#automatic-route-registration)
+  - [Excluding Routes from Auto-Generation](#excluding-routes-from-auto-generation)
   - [Manual Route Registration](#manual-route-registration)
 - [Localization](#localization)
   - [Translating Content](#translating-content)
@@ -61,7 +62,7 @@ That's it. The package is auto-discovered by Laravel, and `/llms.txt` is availab
 
 The package works in two modes:
 
-1. **Zero-config** — Without any setup, `/llms.txt` is automatically generated from all registered `GET` routes in your application. Internal routes (Telescope, Horizon, Debugbar) and routes with URI parameters are excluded.
+1. **Zero-config** — Without any setup, `/llms.txt` is automatically generated from all registered `GET` routes in your application. Internal routes (Telescope, Horizon, Debugbar) and routes with URI parameters are excluded. Additional routes can be excluded via the [`exclude_routes` config option](#excluding-routes-from-auto-generation).
 
 2. **Custom definition** (recommended) — Register a configure callback to have full control over the output. It always takes precedence over auto-generation.
 
@@ -231,6 +232,7 @@ After publishing, the config file is at `config/llms-txt.php`:
 | `cache_enabled` | `true` | Cache rendered output. |
 | `cache_ttl` | `3600` | Cache lifetime in seconds. |
 | `disk` | `null` | Output location for static files. `null` writes directly into the `public/` folder; set a disk name to use a filesystem disk. |
+| `exclude_routes` | `[]` | URI or route-name patterns (with `*` wildcards) to exclude from [auto-generation](#excluding-routes-from-auto-generation). |
 | `locales` | `[]` | List of supported locales (e.g. `['en', 'de']`). |
 | `localize_routes` | `false` | Register locale-prefixed routes like `/en/llms.txt`. |
 
@@ -249,6 +251,19 @@ By default, the package registers one route:
 A second route, `GET /llms-full.txt`, is only registered when `full_route_enabled` is set to `true` — see [llms-full.txt](#llms-fulltxt) for why it is opt-in.
 
 Routes are registered automatically when `register_routes` is `true` (the default).
+
+### Excluding Routes from Auto-Generation
+
+In zero-config mode the document is built from all registered `GET` routes. Use `exclude_routes` to keep specific routes out of the output. Patterns are matched against both the route URI and the route name, and support the `*` wildcard:
+
+```php
+// config/llms-txt.php
+'exclude_routes' => [
+    'admin/*',        // URI wildcard: excludes /admin and everything below
+    'legal/imprint',  // exact URI
+    'internal.*',     // route-name wildcard
+],
+```
 
 ### Manual Route Registration
 
