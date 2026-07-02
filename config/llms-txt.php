@@ -21,6 +21,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | llms-full.txt Route
+    |--------------------------------------------------------------------------
+    |
+    | Serving llms-full.txt dynamically fetches the content of every entry
+    | URL over HTTP on a cache miss. Depending on your entries this can be
+    | slow, trigger requests back to your own application, and lets any
+    | visitor cause outbound HTTP traffic. It is therefore disabled by
+    | default — enable it deliberately, or generate a static file via
+    | `php artisan llms:generate --full` instead.
+    |
+    */
+
+    'full_route_enabled' => false,
+
+    /*
+    |--------------------------------------------------------------------------
     | Manual Route Registration
     |--------------------------------------------------------------------------
     |

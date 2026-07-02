@@ -33,6 +33,7 @@ Built according to the [llmstxt.org](https://llmstxt.org/) specification.
   - [Artisan Command](#artisan-command)
   - [Programmatic Export](#programmatic-export)
 - [llms-full.txt](#llms-fulltxt)
+  - [Serving llms-full.txt Dynamically](#serving-llms-fulltxt-dynamically)
 - [Caching](#caching)
 - [Output Format](#output-format)
 - [Testing](#testing)
@@ -225,6 +226,7 @@ After publishing, the config file is at `config/llms-txt.php`:
 | `route_enabled` | `true` | Enable or disable the HTTP routes entirely. |
 | `llms_txt_route` | `'/llms.txt'` | URL path for the standard file. |
 | `llms_full_txt_route` | `'/llms-full.txt'` | URL path for the full file. |
+| `full_route_enabled` | `false` | Serve `llms-full.txt` dynamically. Disabled by default — see [llms-full.txt](#llms-fulltxt). |
 | `register_routes` | `true` | Auto-register routes. Set to `false` for [manual registration](#manual-route-registration). |
 | `cache_enabled` | `true` | Cache rendered output. |
 | `cache_ttl` | `3600` | Cache lifetime in seconds. |
@@ -238,14 +240,15 @@ After publishing, the config file is at `config/llms-txt.php`:
 
 ### Automatic Route Registration
 
-By default, the package registers two routes:
+By default, the package registers one route:
 
 | Route | Description |
 |---|---|
 | `GET /llms.txt` | Serves the standard `llms.txt` output. |
-| `GET /llms-full.txt` | Serves the `llms-full.txt` output (with fetched content). |
 
-These are registered automatically when `register_routes` is `true` (the default).
+A second route, `GET /llms-full.txt`, is only registered when `full_route_enabled` is set to `true` — see [llms-full.txt](#llms-fulltxt) for why it is opt-in.
+
+Routes are registered automatically when `register_routes` is `true` (the default).
 
 ### Manual Route Registration
 
@@ -413,7 +416,24 @@ $content = LlmsTxt::make()
 LlmsTxt::make()->title('My App')->writeFullToDisk();
 ```
 
-The route `/llms-full.txt` serves this output dynamically.
+### Serving llms-full.txt Dynamically
+
+The `/llms-full.txt` route is **disabled by default**: on a cache miss it performs an HTTP request to every entry URL — which is slow, usually calls back into your own application, and lets any visitor trigger outbound traffic.
+
+The recommended approach is generating a static file instead:
+
+```bash
+php artisan llms:generate --full
+```
+
+If you understand the trade-offs and want the dynamic route anyway, enable it explicitly:
+
+```php
+// config/llms-txt.php
+'full_route_enabled' => true,
+```
+
+With `cache_enabled => true` (the default), the fetched content is cached for `cache_ttl` seconds, so the entry URLs are only fetched once per TTL.
 
 ---
 
