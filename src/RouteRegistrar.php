@@ -18,39 +18,53 @@ class RouteRegistrar
     /**
      * Register the llms.txt and llms-full.txt routes.
      *
-     * Checks for the existence of the `llms-txt.index` named route before
-     * registering, so calling this method multiple times does not produce
-     * duplicate routes.
+     * Does nothing when `route_enabled` is false. The llms-full.txt route is
+     * only registered when `full_route_enabled` is true, since serving it
+     * dynamically triggers HTTP requests to every entry URL.
+     *
+     * Each route is guarded by a check for its named-route existence, so
+     * calling this method multiple times does not produce duplicate routes.
      *
      * When `localize_routes` is enabled in config, locale-prefixed variants
      * are also registered (e.g. `/{locale}/llms.txt`).
      */
     public static function register(): void
     {
+        if (! config('llms-txt.route_enabled', true)) {
+            return;
+        }
+
         $router = app('router');
+        $fullEnabled = (bool) config('llms-txt.full_route_enabled', false);
 
         if (! $router->has('llms-txt.index')) {
             $router->get(
                 config('llms-txt.llms_txt_route', '/llms.txt'),
                 [LlmsTxtController::class, 'index'],
             )->name('llms-txt.index');
+        }
 
+        if ($fullEnabled && ! $router->has('llms-txt.full')) {
             $router->get(
                 config('llms-txt.llms_full_txt_route', '/llms-full.txt'),
                 [LlmsTxtController::class, 'full'],
             )->name('llms-txt.full');
         }
 
-        if (config('llms-txt.localize_routes', false) && ! $router->has('llms-txt.localized.index')) {
+        if (config('llms-txt.localize_routes', false)) {
             $locales = config('llms-txt.locales', []);
 
-            $router->get('/{locale}/llms.txt', [LlmsTxtController::class, 'localizedIndex'])
-                ->whereIn('locale', $locales)
-                ->name('llms-txt.localized.index');
+            if (! $router->has('llms-txt.localized.index')) {
+                $router->get('/{locale}/llms.txt', [LlmsTxtController::class, 'localizedIndex'])
+                    ->whereIn('locale', $locales)
+                    ->name('llms-txt.localized.index');
+            }
 
-            $router->get('/{locale}/llms-full.txt', [LlmsTxtController::class, 'localizedFull'])
-                ->whereIn('locale', $locales)
-                ->name('llms-txt.localized.full');
+            if ($fullEnabled && ! $router->has('llms-txt.localized.full')) {
+                $router->get('/{locale}/llms-full.txt', [LlmsTxtController::class, 'localizedFull'])
+                    ->whereIn('locale', $locales)
+                    ->name('llms-txt.localized.full');
+            }
         }
 
         $router->getRoutes()->refreshNameLookups();

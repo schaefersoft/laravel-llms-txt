@@ -11,7 +11,16 @@ it('registers the llms.txt route', function () {
         ->assertHeader('Content-Type', 'text/plain; charset=utf-8');
 });
 
-it('registers the llms-full.txt route', function () {
+it('does not register the llms-full.txt route by default', function () {
+    $this->get('/llms-full.txt')->assertStatus(404);
+});
+
+it('registers the llms-full.txt route when full_route_enabled is true', function () {
+    config()->set('llms-txt.full_route_enabled', true);
+
+    // Re-register routes since config was set after boot.
+    LlmsTxt::routes();
+
     $this->get('/llms-full.txt')
         ->assertStatus(200)
         ->assertHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -38,6 +47,7 @@ it('serves content from configured LlmsTxt instance', function () {
 it('registers localized routes when localize_routes is enabled', function () {
     // Re-boot provider with localized routes config.
     config()->set('llms-txt.localize_routes', true);
+    config()->set('llms-txt.full_route_enabled', true);
     config()->set('llms-txt.locales', ['de', 'en']);
 
     // Manually trigger route registration since config was set after boot.
@@ -85,6 +95,8 @@ it('merges the default config', function () {
     expect(config('llms-txt.route_enabled'))->toBeTrue()
         ->and(config('llms-txt.llms_txt_route'))->toBe('/llms.txt')
         ->and(config('llms-txt.llms_full_txt_route'))->toBe('/llms-full.txt')
+        ->and(config('llms-txt.full_route_enabled'))->toBeFalse()
+        ->and(config('llms-txt.exclude_routes'))->toBe([])
         ->and(config('llms-txt.cache_enabled'))->toBeFalse() // overridden in TestCase
-        ->and(config('llms-txt.disk'))->toBe('public');
+        ->and(config('llms-txt.disk'))->toBe('public'); // overridden in TestCase (default: null)
 });

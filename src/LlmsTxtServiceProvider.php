@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SchaeferSoft\LaravelLlmsTxt;
 
 use Illuminate\Support\ServiceProvider;
+use SchaeferSoft\LaravelLlmsTxt\Commands\ClearLlmsTxtCacheCommand;
 use SchaeferSoft\LaravelLlmsTxt\Commands\GenerateLlmsTxtCommand;
 
 /**
@@ -34,10 +35,11 @@ class LlmsTxtServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 GenerateLlmsTxtCommand::class,
+                ClearLlmsTxtCacheCommand::class,
             ]);
         }
 
-        if (config('llms-txt.route_enabled', true) && config('llms-txt.register_routes', true)) {
+        if (config('llms-txt.register_routes', true)) {
             $this->registerRoutes();
         }
     }

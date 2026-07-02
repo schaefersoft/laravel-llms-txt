@@ -282,6 +282,8 @@ it('LlmsTxt::routes() registers routes correctly when called manually', function
     $originalRouter = app('router');
     app()->instance('router', $freshRouter);
 
+    config()->set('llms-txt.full_route_enabled', true);
+
     LlmsTxt::routes();
 
     expect($freshRouter->has('llms-txt.index'))->toBeTrue();
@@ -291,10 +293,41 @@ it('LlmsTxt::routes() registers routes correctly when called manually', function
     app()->instance('router', $originalRouter);
 });
 
+it('LlmsTxt::routes() does not register the full route by default', function () {
+    $freshRouter = new Router(new Dispatcher);
+    $originalRouter = app('router');
+    app()->instance('router', $freshRouter);
+
+    LlmsTxt::routes();
+
+    expect($freshRouter->has('llms-txt.index'))->toBeTrue();
+    expect($freshRouter->has('llms-txt.full'))->toBeFalse();
+
+    // Restore
+    app()->instance('router', $originalRouter);
+});
+
+it('LlmsTxt::routes() respects route_enabled', function () {
+    $freshRouter = new Router(new Dispatcher);
+    $originalRouter = app('router');
+    app()->instance('router', $freshRouter);
+
+    config()->set('llms-txt.route_enabled', false);
+
+    LlmsTxt::routes();
+
+    expect($freshRouter->has('llms-txt.index'))->toBeFalse();
+
+    // Restore
+    app()->instance('router', $originalRouter);
+});
+
 it('LlmsTxt::routes() is idempotent — no duplicate routes on double call', function () {
     $freshRouter = new Router(new Dispatcher);
     $originalRouter = app('router');
     app()->instance('router', $freshRouter);
+
+    config()->set('llms-txt.full_route_enabled', true);
 
     LlmsTxt::routes();
     LlmsTxt::routes(); // second call must be a no-op — no exception, no duplicates

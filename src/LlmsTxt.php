@@ -8,6 +8,7 @@ use Closure;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Filesystem\FilesystemManager;
 use Illuminate\Support\Collection;
 
@@ -250,9 +251,9 @@ class LlmsTxt
     /**
      * Register the llms.txt routes on demand.
      *
-     * Respects the `route_enabled`, `llms_txt_route`, `llms_full_txt_route`,
-     * and `localize_routes` config values. Safe to call multiple times —
-     * routes are only registered once (idempotent).
+     * Respects the `route_enabled`, `full_route_enabled`, `llms_txt_route`,
+     * `llms_full_txt_route`, and `localize_routes` config values. Safe to
+     * call multiple times — routes are only registered once (idempotent).
      *
      * Useful when `register_routes => false` in config and you want to place
      * the routes inside a specific middleware group in routes/web.php.
@@ -346,8 +347,8 @@ class LlmsTxt
      * Render the document as an llms-full.txt string.
      *
      * Same structure as llms.txt but fetches the remote content of each
-     * entry URL and appends it below the entry line. Fetched content is
-     * included verbatim inside a fenced code block.
+     * entry URL and appends it verbatim below the entry line. URLs that
+     * cannot be fetched are silently skipped.
      *
      * @param  Client|null  $httpClient  Optional Guzzle client for testing.
      */
@@ -414,7 +415,11 @@ class LlmsTxt
     }
 
     /**
-     * Write the llms.txt output to the configured filesystem disk.
+     * Write the llms.txt output to the configured output location.
+     *
+     * With the default config (`disk => null`) the file is written directly
+     * into the application's public folder, so it is served at `/llms.txt`.
+     * Set `llms-txt.disk` to write to a configured filesystem disk instead.
      *
      * The filename is derived from the locale when one is set, so
      * `->locale('de')->writeToDisk()` writes to `de/llms.txt`.
@@ -424,15 +429,15 @@ class LlmsTxt
      */
     public function writeToDisk(?string $filename = null): bool
     {
-        $disk = $this->getFilesystemManager()->disk(config('llms-txt.disk', 'public'));
-
         $path = $filename ?? $this->resolveFilename('llms.txt');
 
-        return $disk->put($path, $this->render());
+        return $this->getOutputDisk()->put($path, $this->render());
     }
 
     /**
-     * Write the llms-full.txt output to the configured filesystem disk.
+     * Write the llms-full.txt output to the configured output location.
+     *
+     * Same output location rules as writeToDisk().
      *
      * @param  string|null  $filename  Override the output filename.
      * @param  Client|null  $httpClient  Optional Guzzle client for testing.
@@ -440,11 +445,9 @@ class LlmsTxt
      */
     public function writeFullToDisk(?string $filename = null, ?Client $httpClient = null): bool
     {
-        $disk = $this->getFilesystemManager()->disk(config('llms-txt.disk', 'public'));
-
         $path = $filename ?? $this->resolveFilename('llms-full.txt');
 
-        return $disk->put($path, $this->renderFull($httpClient));
+        return $this->getOutputDisk()->put($path, $this->renderFull($httpClient));
     }
 
     /**
@@ -491,16 +494,52 @@ class LlmsTxt
     }
 
     /**
-     * Flush a previously cached output.
+     * Flush previously cached output.
      *
-     * @param  string  $key  The cache key to flush.
+     * When a key is given, only that key is forgotten. Without a key, all
+     * cache keys the package uses are flushed: the base keys (`llms-txt`,
+     * `llms-txt-full`) and their locale-suffixed variants used by the HTTP
+     * controller (e.g. `llms-txt.de`) for every configured locale, the app
+     * locale, and the fallback locale.
+     *
+     * @param  string|null  $key  A specific cache key to flush, or null for all.
      */
-    public function flushCache(string $key = 'llms-txt'): bool
+    public function flushCache(?string $key = null): bool
     {
         /** @var CacheRepository $cache */
         $cache = app('cache');
 
-        return $cache->forget($key);
+        if ($key !== null) {
+            return $cache->forget($key);
+        }
+
+        foreach ($this->cacheKeys() as $cacheKey) {
+            $cache->forget($cacheKey);
+        }
+
+        return true;
+    }
+
+    /**
+     * All cache keys this package may have written output under.
+     *
+     * @return list<string>
+     */
+    protected function cacheKeys(): array
+    {
+        $locales = array_values(array_unique(array_filter(array_merge(
+            (array) config('llms-txt.locales', []),
+            [config('app.locale'), config('app.fallback_locale')],
+        ))));
+
+        $keys = ['llms-txt', 'llms-txt-full'];
+
+        foreach ($locales as $locale) {
+            $keys[] = "llms-txt.{$locale}";
+            $keys[] = "llms-txt-full.{$locale}";
+        }
+
+        return $keys;
     }
 
     /**
@@ -518,11 +557,26 @@ class LlmsTxt
     }
 
     /**
-     * Resolve the filesystem manager from the container.
+     * Resolve the output filesystem based on the `llms-txt.disk` config.
+     *
+     * A null disk (the default) resolves to an on-demand local disk rooted
+     * at the application's public folder, so generated files are directly
+     * web-accessible (e.g. `/llms.txt`). A string resolves to the
+     * corresponding configured filesystem disk.
      */
-    protected function getFilesystemManager(): FilesystemManager
+    protected function getOutputDisk(): Filesystem
     {
-        return app(FilesystemManager::class);
+        $manager = app(FilesystemManager::class);
+        $disk = config('llms-txt.disk');
+
+        if ($disk === null) {
+            return $manager->build([
+                'driver' => 'local',
+                'root' => public_path(),
+            ]);
+        }
+
+        return $manager->disk($disk);
     }
 
     /**

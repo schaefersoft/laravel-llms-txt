@@ -21,6 +21,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | llms-full.txt Route
+    |--------------------------------------------------------------------------
+    |
+    | Serving llms-full.txt dynamically fetches the content of every entry
+    | URL over HTTP on a cache miss. Depending on your entries this can be
+    | slow, trigger requests back to your own application, and lets any
+    | visitor cause outbound HTTP traffic. It is therefore disabled by
+    | default — enable it deliberately, or generate a static file via
+    | `php artisan llms:generate --full` instead.
+    |
+    */
+
+    'full_route_enabled' => false,
+
+    /*
+    |--------------------------------------------------------------------------
     | Manual Route Registration
     |--------------------------------------------------------------------------
     |
@@ -58,15 +74,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Filesystem Disk
+    | Output Location
     |--------------------------------------------------------------------------
     |
-    | The filesystem disk used when generating static files via the
-    | `llms:generate` Artisan command. Defaults to the `public` disk.
+    | Where static files generated via the `llms:generate` Artisan command
+    | (and writeToDisk()) are written. When `disk` is null (the default),
+    | files are written directly into your application's public folder, so
+    | llms.txt is served at https://your-app.test/llms.txt. Set a disk name
+    | (e.g. 'public' or 's3') to write to a configured filesystem disk
+    | instead.
     |
     */
 
-    'disk' => 'public',
+    'disk' => null,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Excluded Routes (Auto-Resolver)
+    |--------------------------------------------------------------------------
+    |
+    | When no LlmsTxt::configure() callback is registered, the document is
+    | built automatically from all registered GET routes. Use this list to
+    | exclude routes from that output. Patterns are matched against both the
+    | route URI (without leading slash) and the route name, and support the
+    | `*` wildcard.
+    |
+    | Example: ['admin/*', 'legal/imprint', 'internal.*']
+    |
+    */
+
+    'exclude_routes' => [],
 
     /*
     |--------------------------------------------------------------------------

@@ -24,6 +24,7 @@ Built according to the [llmstxt.org](https://llmstxt.org/) specification.
 - [Configuration](#configuration)
 - [Routes](#routes)
   - [Automatic Route Registration](#automatic-route-registration)
+  - [Excluding Routes from Auto-Generation](#excluding-routes-from-auto-generation)
   - [Manual Route Registration](#manual-route-registration)
 - [Localization](#localization)
   - [Translating Content](#translating-content)
@@ -33,6 +34,7 @@ Built according to the [llmstxt.org](https://llmstxt.org/) specification.
   - [Artisan Command](#artisan-command)
   - [Programmatic Export](#programmatic-export)
 - [llms-full.txt](#llms-fulltxt)
+  - [Serving llms-full.txt Dynamically](#serving-llms-fulltxt-dynamically)
 - [Caching](#caching)
 - [Output Format](#output-format)
 - [Testing](#testing)
@@ -60,7 +62,7 @@ That's it. The package is auto-discovered by Laravel, and `/llms.txt` is availab
 
 The package works in two modes:
 
-1. **Zero-config** — Without any setup, `/llms.txt` is automatically generated from all registered `GET` routes in your application. Internal routes (Telescope, Horizon, Debugbar) and routes with URI parameters are excluded.
+1. **Zero-config** — Without any setup, `/llms.txt` is automatically generated from all registered `GET` routes in your application. Internal routes (Telescope, Horizon, Debugbar) and routes with URI parameters are excluded. Additional routes can be excluded via the [`exclude_routes` config option](#excluding-routes-from-auto-generation).
 
 2. **Custom definition** (recommended) — Register a configure callback to have full control over the output. It always takes precedence over auto-generation.
 
@@ -155,7 +157,7 @@ LlmsTxt::make()
 
 > `create()` and `make()` are identical — use whichever you prefer.
 
-> **Note:** The `entry()` shorthand returns the `Section`, not the `Entry`. To use `withDescription()`, use `Entry::create()` directly or pass the description as the third argument to `entry()`.
+> **Note:** The `entry()` shorthand returns the `Section`, not the `Entry`. To call methods on the `Entry` itself (e.g. `description()`), use `Entry::create()` with `addEntry()` — or simply pass the description as the third argument to `entry()`.
 
 ### Model-Based Entries
 
@@ -225,10 +227,12 @@ After publishing, the config file is at `config/llms-txt.php`:
 | `route_enabled` | `true` | Enable or disable the HTTP routes entirely. |
 | `llms_txt_route` | `'/llms.txt'` | URL path for the standard file. |
 | `llms_full_txt_route` | `'/llms-full.txt'` | URL path for the full file. |
+| `full_route_enabled` | `false` | Serve `llms-full.txt` dynamically. Disabled by default — see [llms-full.txt](#llms-fulltxt). |
 | `register_routes` | `true` | Auto-register routes. Set to `false` for [manual registration](#manual-route-registration). |
 | `cache_enabled` | `true` | Cache rendered output. |
 | `cache_ttl` | `3600` | Cache lifetime in seconds. |
-| `disk` | `'public'` | Filesystem disk used by the Artisan command. |
+| `disk` | `null` | Output location for static files. `null` writes directly into the `public/` folder; set a disk name to use a filesystem disk. |
+| `exclude_routes` | `[]` | URI or route-name patterns (with `*` wildcards) to exclude from [auto-generation](#excluding-routes-from-auto-generation). |
 | `locales` | `[]` | List of supported locales (e.g. `['en', 'de']`). |
 | `localize_routes` | `false` | Register locale-prefixed routes like `/en/llms.txt`. |
 
@@ -238,14 +242,28 @@ After publishing, the config file is at `config/llms-txt.php`:
 
 ### Automatic Route Registration
 
-By default, the package registers two routes:
+By default, the package registers one route:
 
 | Route | Description |
 |---|---|
 | `GET /llms.txt` | Serves the standard `llms.txt` output. |
-| `GET /llms-full.txt` | Serves the `llms-full.txt` output (with fetched content). |
 
-These are registered automatically when `register_routes` is `true` (the default).
+A second route, `GET /llms-full.txt`, is only registered when `full_route_enabled` is set to `true` — see [llms-full.txt](#llms-fulltxt) for why it is opt-in.
+
+Routes are registered automatically when `register_routes` is `true` (the default).
+
+### Excluding Routes from Auto-Generation
+
+In zero-config mode the document is built from all registered `GET` routes. Use `exclude_routes` to keep specific routes out of the output. Patterns are matched against both the route URI and the route name, and support the `*` wildcard:
+
+```php
+// config/llms-txt.php
+'exclude_routes' => [
+    'admin/*',        // URI wildcard: excludes /admin and everything below
+    'legal/imprint',  // exact URI
+    'internal.*',     // route-name wildcard
+],
+```
 
 ### Manual Route Registration
 
@@ -374,7 +392,7 @@ php artisan llms:generate --all-locales
 php artisan llms:generate --all-locales --full
 ```
 
-Files are written to the filesystem disk configured via the `disk` option (default: `public`).
+By default, files are written directly into your application's `public/` folder, so `public/llms.txt` is immediately served at `https://your-app.test/llms.txt`. To write to a filesystem disk instead (e.g. `s3`), set the `disk` config option.
 
 ### Programmatic Export
 
@@ -413,7 +431,24 @@ $content = LlmsTxt::make()
 LlmsTxt::make()->title('My App')->writeFullToDisk();
 ```
 
-The route `/llms-full.txt` serves this output dynamically.
+### Serving llms-full.txt Dynamically
+
+The `/llms-full.txt` route is **disabled by default**: on a cache miss it performs an HTTP request to every entry URL — which is slow, usually calls back into your own application, and lets any visitor trigger outbound traffic.
+
+The recommended approach is generating a static file instead:
+
+```bash
+php artisan llms:generate --full
+```
+
+If you understand the trade-offs and want the dynamic route anyway, enable it explicitly:
+
+```php
+// config/llms-txt.php
+'full_route_enabled' => true,
+```
+
+With `cache_enabled => true` (the default), the fetched content is cached for `cache_ttl` seconds, so the entry URLs are only fetched once per TTL.
 
 ---
 
@@ -428,10 +463,20 @@ $content = LlmsTxt::make()->title('My App')->getCached();
 // Use a custom cache key
 $content = LlmsTxt::make()->title('My App')->getCached('my-custom-key');
 
-// Flush the cache
-LlmsTxt::make()->flushCache();           // default key
+// Flush ALL package cache keys (base keys + locale variants used by the routes)
+LlmsTxt::make()->flushCache();
+
+// Flush a single custom key
 LlmsTxt::make()->flushCache('my-custom-key');
 ```
+
+You can also clear the cache from the command line:
+
+```bash
+php artisan llms:clear
+```
+
+> **Note:** `php artisan llms:generate` flushes the cache automatically after a successful run, so the dynamic routes immediately reflect the new content.
 
 ---
 

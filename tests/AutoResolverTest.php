@@ -71,6 +71,34 @@ it('excludes routes starting with internal prefixes', function () {
     expect($entryUrls)->not->toContain(url('/telescope/requests'));
 });
 
+it('excludes routes matching exclude_routes URI patterns', function () {
+    config()->set('llms-txt.exclude_routes', ['/admin/*', 'secret-page']);
+
+    app('router')->get('/admin/dashboard', fn () => 'test');
+    app('router')->get('/secret-page', fn () => 'test');
+    app('router')->get('/public-page', fn () => 'test');
+
+    $llmsTxt = AutoResolver::resolve();
+
+    $entryUrls = $llmsTxt->getSections()->first()->getEntries()->map(fn ($e) => $e->getUrl());
+    expect($entryUrls)->not->toContain(url('/admin/dashboard'));
+    expect($entryUrls)->not->toContain(url('/secret-page'));
+    expect($entryUrls)->toContain(url('/public-page'));
+});
+
+it('excludes routes matching exclude_routes name patterns', function () {
+    config()->set('llms-txt.exclude_routes', ['internal.*']);
+
+    app('router')->get('/reports', fn () => 'test')->name('internal.reports');
+    app('router')->get('/about-us', fn () => 'test')->name('pages.about');
+
+    $llmsTxt = AutoResolver::resolve();
+
+    $entryUrls = $llmsTxt->getSections()->first()->getEntries()->map(fn ($e) => $e->getUrl());
+    expect($entryUrls)->not->toContain(url('/reports'));
+    expect($entryUrls)->toContain(url('/about-us'));
+});
+
 it('configure() takes precedence over auto-resolving in the controller', function () {
     config()->set('llms-txt.cache_enabled', false);
 

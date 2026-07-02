@@ -10,9 +10,12 @@ use SchaeferSoft\LaravelLlmsTxt\LlmsTxt;
 /**
  * Artisan command to generate static llms.txt and llms-full.txt files.
  *
- * Writes the rendered output to the configured filesystem disk (default: public).
- * Supports an optional `--full` flag to also generate the extended llms-full.txt,
- * and a `--locale` option to generate locale-specific files.
+ * Writes the rendered output to the configured output location — by default
+ * directly into the application's public folder, or to a filesystem disk when
+ * `llms-txt.disk` is set. Supports an optional `--full` flag to also generate
+ * the extended llms-full.txt, and a `--locale` option to generate
+ * locale-specific files. After successful generation, any cached
+ * dynamic-route output is flushed.
  *
  * When a locale is given, `app()->setLocale()` is called before resolving the
  * LlmsTxt instance so that any Closures in title/description/section names are
@@ -51,12 +54,28 @@ class GenerateLlmsTxtCommand extends Command
     public function handle(): int
     {
         if ($this->option('all-locales')) {
-            return $this->generateForAllLocales();
+            $result = $this->generateForAllLocales();
+        } else {
+            $locale = $this->option('locale');
+
+            $result = $this->generateForLocale(is_string($locale) ? $locale : null);
         }
 
-        $locale = $this->option('locale');
+        if ($result === self::SUCCESS) {
+            $this->flushCache();
+        }
 
-        return $this->generateForLocale(is_string($locale) ? $locale : null);
+        return $result;
+    }
+
+    /**
+     * Flush cached dynamic-route output so it reflects the newly generated content.
+     */
+    protected function flushCache(): void
+    {
+        LlmsTxt::make()->flushCache();
+
+        $this->line('  <info>✔</info> Cached output flushed');
     }
 
     /**
@@ -117,7 +136,7 @@ class GenerateLlmsTxtCommand extends Command
             return self::FAILURE;
         }
 
-        $disk = config('llms-txt.disk', 'public');
+        $disk = config('llms-txt.disk') ?? 'public folder';
         $filename = $locale ? "{$locale}/llms.txt" : 'llms.txt';
         $this->line("  <info>✔</info> Written to [{$disk}] {$filename}");
 
