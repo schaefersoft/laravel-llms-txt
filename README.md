@@ -228,7 +228,7 @@ After publishing, the config file is at `config/llms-txt.php`:
 | `register_routes` | `true` | Auto-register routes. Set to `false` for [manual registration](#manual-route-registration). |
 | `cache_enabled` | `true` | Cache rendered output. |
 | `cache_ttl` | `3600` | Cache lifetime in seconds. |
-| `disk` | `'public'` | Filesystem disk used by the Artisan command. |
+| `disk` | `null` | Output location for static files. `null` writes directly into the `public/` folder; set a disk name to use a filesystem disk. |
 | `locales` | `[]` | List of supported locales (e.g. `['en', 'de']`). |
 | `localize_routes` | `false` | Register locale-prefixed routes like `/en/llms.txt`. |
 
@@ -374,7 +374,7 @@ php artisan llms:generate --all-locales
 php artisan llms:generate --all-locales --full
 ```
 
-Files are written to the filesystem disk configured via the `disk` option (default: `public`).
+By default, files are written directly into your application's `public/` folder, so `public/llms.txt` is immediately served at `https://your-app.test/llms.txt`. To write to a filesystem disk instead (e.g. `s3`), set the `disk` config option.
 
 ### Programmatic Export
 

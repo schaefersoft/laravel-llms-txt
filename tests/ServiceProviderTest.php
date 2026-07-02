@@ -86,5 +86,5 @@ it('merges the default config', function () {
         ->and(config('llms-txt.llms_txt_route'))->toBe('/llms.txt')
         ->and(config('llms-txt.llms_full_txt_route'))->toBe('/llms-full.txt')
         ->and(config('llms-txt.cache_enabled'))->toBeFalse() // overridden in TestCase
-        ->and(config('llms-txt.disk'))->toBe('public');
+        ->and(config('llms-txt.disk'))->toBe('public'); // overridden in TestCase (default: null)
 });

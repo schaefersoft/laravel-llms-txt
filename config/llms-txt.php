@@ -58,15 +58,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Filesystem Disk
+    | Output Location
     |--------------------------------------------------------------------------
     |
-    | The filesystem disk used when generating static files via the
-    | `llms:generate` Artisan command. Defaults to the `public` disk.
+    | Where static files generated via the `llms:generate` Artisan command
+    | (and writeToDisk()) are written. When `disk` is null (the default),
+    | files are written directly into your application's public folder, so
+    | llms.txt is served at https://your-app.test/llms.txt. Set a disk name
+    | (e.g. 'public' or 's3') to write to a configured filesystem disk
+    | instead.
     |
     */
 
-    'disk' => 'public',
+    'disk' => null,
 
     /*
     |--------------------------------------------------------------------------

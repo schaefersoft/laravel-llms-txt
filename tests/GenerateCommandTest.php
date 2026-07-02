@@ -62,6 +62,22 @@ it('outputs a warning and falls back when all-locales is set but no locales conf
     Storage::disk('public')->assertExists('llms.txt');
 });
 
+it('writes directly into the public folder when no disk is configured', function () {
+    config()->set('llms-txt.disk', null);
+
+    LlmsTxt::configure(fn ($llms) => $llms->title('Public Folder'));
+
+    $this->artisan('llms:generate')
+        ->assertExitCode(0);
+
+    $path = public_path('llms.txt');
+
+    expect(file_exists($path))->toBeTrue()
+        ->and(file_get_contents($path))->toContain('# Public Folder');
+
+    unlink($path);
+});
+
 it('generates both llms.txt and llms-full.txt with --full flag', function () {
     LlmsTxt::configure(fn ($llms) => $llms
         ->title('SchaeferSoft')
