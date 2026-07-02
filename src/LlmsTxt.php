@@ -347,8 +347,8 @@ class LlmsTxt
      * Render the document as an llms-full.txt string.
      *
      * Same structure as llms.txt but fetches the remote content of each
-     * entry URL and appends it below the entry line. Fetched content is
-     * included verbatim inside a fenced code block.
+     * entry URL and appends it verbatim below the entry line. URLs that
+     * cannot be fetched are silently skipped.
      *
      * @param  Client|null  $httpClient  Optional Guzzle client for testing.
      */

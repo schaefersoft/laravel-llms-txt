@@ -156,7 +156,7 @@ LlmsTxt::make()
 
 > `create()` and `make()` are identical — use whichever you prefer.
 
-> **Note:** The `entry()` shorthand returns the `Section`, not the `Entry`. To use `withDescription()`, use `Entry::create()` directly or pass the description as the third argument to `entry()`.
+> **Note:** The `entry()` shorthand returns the `Section`, not the `Entry`. To call methods on the `Entry` itself (e.g. `description()`), use `Entry::create()` with `addEntry()` — or simply pass the description as the third argument to `entry()`.
 
 ### Model-Based Entries
 
