@@ -307,6 +307,21 @@ it('LlmsTxt::routes() does not register the full route by default', function () 
     app()->instance('router', $originalRouter);
 });
 
+it('LlmsTxt::routes() respects route_enabled', function () {
+    $freshRouter = new Router(new Dispatcher);
+    $originalRouter = app('router');
+    app()->instance('router', $freshRouter);
+
+    config()->set('llms-txt.route_enabled', false);
+
+    LlmsTxt::routes();
+
+    expect($freshRouter->has('llms-txt.index'))->toBeFalse();
+
+    // Restore
+    app()->instance('router', $originalRouter);
+});
+
 it('LlmsTxt::routes() is idempotent — no duplicate routes on double call', function () {
     $freshRouter = new Router(new Dispatcher);
     $originalRouter = app('router');

@@ -18,9 +18,9 @@ class RouteRegistrar
     /**
      * Register the llms.txt and llms-full.txt routes.
      *
-     * The llms-full.txt route is only registered when `full_route_enabled`
-     * is true, since serving it dynamically triggers HTTP requests to every
-     * entry URL.
+     * Does nothing when `route_enabled` is false. The llms-full.txt route is
+     * only registered when `full_route_enabled` is true, since serving it
+     * dynamically triggers HTTP requests to every entry URL.
      *
      * Each route is guarded by a check for its named-route existence, so
      * calling this method multiple times does not produce duplicate routes.
@@ -30,6 +30,10 @@ class RouteRegistrar
      */
     public static function register(): void
     {
+        if (! config('llms-txt.route_enabled', true)) {
+            return;
+        }
+
         $router = app('router');
         $fullEnabled = (bool) config('llms-txt.full_route_enabled', false);
 

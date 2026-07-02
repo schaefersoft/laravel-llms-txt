@@ -37,7 +37,7 @@ class LlmsTxtServiceProvider extends ServiceProvider
             ]);
         }
 
-        if (config('llms-txt.route_enabled', true) && config('llms-txt.register_routes', true)) {
+        if (config('llms-txt.register_routes', true)) {
             $this->registerRoutes();
         }
     }

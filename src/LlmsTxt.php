@@ -251,9 +251,9 @@ class LlmsTxt
     /**
      * Register the llms.txt routes on demand.
      *
-     * Respects the `route_enabled`, `llms_txt_route`, `llms_full_txt_route`,
-     * and `localize_routes` config values. Safe to call multiple times —
-     * routes are only registered once (idempotent).
+     * Respects the `route_enabled`, `full_route_enabled`, `llms_txt_route`,
+     * `llms_full_txt_route`, and `localize_routes` config values. Safe to
+     * call multiple times — routes are only registered once (idempotent).
      *
      * Useful when `register_routes => false` in config and you want to place
      * the routes inside a specific middleware group in routes/web.php.
