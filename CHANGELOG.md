@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.1.0...v1.2.0) (2026-07-02)
+
+
+### Features
+
+* add exclude_routes config for the auto resolver ([8ae6802](https://github.com/schaefersoft/laravel-llms-txt/commit/8ae68023ef2ebcbec3c332b0fa13ab9dc1b25634))
+* disable the llms-full.txt route by default ([ffec396](https://github.com/schaefersoft/laravel-llms-txt/commit/ffec396097276a36175f55e6bfdb6d05f9cfacba))
+* flush all cache keys and add llms:clear command ([8431245](https://github.com/schaefersoft/laravel-llms-txt/commit/84312452aee85416ffc0965c400bb2db171ae5db))
+* write generated files to the public folder by default ([0f06fec](https://github.com/schaefersoft/laravel-llms-txt/commit/0f06fece8a435e8e7e5ab3660a3f07288bdd45ef))
+
+
+### Bug Fixes
+
+* make LlmsTxt::routes() respect route_enabled ([e0265a8](https://github.com/schaefersoft/laravel-llms-txt/commit/e0265a80003a333481d3f03afe9d5efc9baea06d))
+
 ## [1.1.0](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.0.3...v1.1.0) (2026-05-13)
 
 
