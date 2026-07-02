@@ -448,10 +448,20 @@ $content = LlmsTxt::make()->title('My App')->getCached();
 // Use a custom cache key
 $content = LlmsTxt::make()->title('My App')->getCached('my-custom-key');
 
-// Flush the cache
-LlmsTxt::make()->flushCache();           // default key
+// Flush ALL package cache keys (base keys + locale variants used by the routes)
+LlmsTxt::make()->flushCache();
+
+// Flush a single custom key
 LlmsTxt::make()->flushCache('my-custom-key');
 ```
+
+You can also clear the cache from the command line:
+
+```bash
+php artisan llms:clear
+```
+
+> **Note:** `php artisan llms:generate` flushes the cache automatically after a successful run, so the dynamic routes immediately reflect the new content.
 
 ---
 

@@ -494,16 +494,52 @@ class LlmsTxt
     }
 
     /**
-     * Flush a previously cached output.
+     * Flush previously cached output.
      *
-     * @param  string  $key  The cache key to flush.
+     * When a key is given, only that key is forgotten. Without a key, all
+     * cache keys the package uses are flushed: the base keys (`llms-txt`,
+     * `llms-txt-full`) and their locale-suffixed variants used by the HTTP
+     * controller (e.g. `llms-txt.de`) for every configured locale, the app
+     * locale, and the fallback locale.
+     *
+     * @param  string|null  $key  A specific cache key to flush, or null for all.
      */
-    public function flushCache(string $key = 'llms-txt'): bool
+    public function flushCache(?string $key = null): bool
     {
         /** @var CacheRepository $cache */
         $cache = app('cache');
 
-        return $cache->forget($key);
+        if ($key !== null) {
+            return $cache->forget($key);
+        }
+
+        foreach ($this->cacheKeys() as $cacheKey) {
+            $cache->forget($cacheKey);
+        }
+
+        return true;
+    }
+
+    /**
+     * All cache keys this package may have written output under.
+     *
+     * @return list<string>
+     */
+    protected function cacheKeys(): array
+    {
+        $locales = array_values(array_unique(array_filter(array_merge(
+            (array) config('llms-txt.locales', []),
+            [config('app.locale'), config('app.fallback_locale')],
+        ))));
+
+        $keys = ['llms-txt', 'llms-txt-full'];
+
+        foreach ($locales as $locale) {
+            $keys[] = "llms-txt.{$locale}";
+            $keys[] = "llms-txt-full.{$locale}";
+        }
+
+        return $keys;
     }
 
     /**

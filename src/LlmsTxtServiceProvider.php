@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SchaeferSoft\LaravelLlmsTxt;
 
 use Illuminate\Support\ServiceProvider;
+use SchaeferSoft\LaravelLlmsTxt\Commands\ClearLlmsTxtCacheCommand;
 use SchaeferSoft\LaravelLlmsTxt\Commands\GenerateLlmsTxtCommand;
 
 /**
@@ -34,6 +35,7 @@ class LlmsTxtServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 GenerateLlmsTxtCommand::class,
+                ClearLlmsTxtCacheCommand::class,
             ]);
         }
 

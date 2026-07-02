@@ -78,6 +78,21 @@ it('writes directly into the public folder when no disk is configured', function
     unlink($path);
 });
 
+it('flushes cached output after successful generation', function () {
+    config()->set('llms-txt.cache_enabled', true);
+
+    cache()->put('llms-txt', 'stale output', 3600);
+    cache()->put('llms-txt.'.app()->getLocale(), 'stale output', 3600);
+
+    LlmsTxt::configure(fn ($llms) => $llms->title('Fresh'));
+
+    $this->artisan('llms:generate')
+        ->assertExitCode(0);
+
+    expect(cache()->get('llms-txt'))->toBeNull()
+        ->and(cache()->get('llms-txt.'.app()->getLocale()))->toBeNull();
+});
+
 it('generates both llms.txt and llms-full.txt with --full flag', function () {
     LlmsTxt::configure(fn ($llms) => $llms
         ->title('SchaeferSoft')
