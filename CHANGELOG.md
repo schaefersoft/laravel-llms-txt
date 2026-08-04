@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.2.0...v1.2.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* bump guzzle to patched version resolving security advisories ([fc844a5](https://github.com/schaefersoft/laravel-llms-txt/commit/fc844a5f02f852410f9683eca11d95331533736e))
+* bump guzzle to patched version resolving security advisories ([0979889](https://github.com/schaefersoft/laravel-llms-txt/commit/0979889bdb1ab0d4f4a9c6820da470486066e0a9))
+
 ## [1.2.0](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.1.0...v1.2.0) (2026-07-02)
 
 
