@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.2](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.2.1...v1.2.2) (2026-08-25)
+
+
+### Miscellaneous Chores
+
+* **dist:** include license file ([e8b04e7](https://github.com/schaefersoft/laravel-llms-txt/commit/e8b04e70ac11bb39c71c6ca4ebe7036b6c868c09))
+* **dist:** keep unnecessary artefacts out of releases ([15b6c6d](https://github.com/schaefersoft/laravel-llms-txt/commit/15b6c6d7e9cdfbc030e9af9a97e4cd0814ef9cd0))
+* **dist:** keep unnecessary artefacts out of releases ([95927f1](https://github.com/schaefersoft/laravel-llms-txt/commit/95927f1d9d4e598469bf83e9baae481a2877c74e))
+
 ## [1.2.1](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.2.0...v1.2.1) (2026-08-04)
 
 
