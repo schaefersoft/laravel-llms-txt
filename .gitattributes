@@ -5,5 +5,6 @@
 composer.json -export-ignore
 config/ -export-ignore
 config/** -export-ignore
+LICENSE.md -export-ignore
 src/ -export-ignore
 src/** -export-ignore
