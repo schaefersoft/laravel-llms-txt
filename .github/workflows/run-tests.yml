@@ -14,6 +14,7 @@ jobs:
         php: ['8.2', '8.3', '8.4', '8.5']
         laravel: ['10.*', '11.*', '12.*', '13.*']
         stability: [prefer-stable]
+        guzzle: ['7.*', '8.*']
         include:
           - laravel: '10.*'
             testbench: '8.*'
@@ -34,8 +35,12 @@ jobs:
             php: '8.5'
           - laravel: '13.*'
             php: '8.2'
+          - laravel: '11.*'
+            guzzle: '8.*'
+          - laravel: '12.*'
+            guzzle: '8.*'
 
-    name: PHP ${{ matrix.php }} - Laravel ${{ matrix.laravel }} - ${{ matrix.stability }}
+    name: PHP ${{ matrix.php }} - Laravel ${{ matrix.laravel }} - Guzzle ${{ matrix.guzzle }} - ${{ matrix.stability }}
 
     steps:
       - uses: actions/checkout@v4
@@ -51,12 +56,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: ${{ runner.os }}-php${{ matrix.php }}-laravel${{ matrix.laravel }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-php${{ matrix.php }}-laravel${{ matrix.laravel }}-
+          key: ${{ runner.os }}-php${{ matrix.php }}-laravel${{ matrix.laravel }}-guzzle${{ matrix.guzzle }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-php${{ matrix.php }}-laravel${{ matrix.laravel }}-guzzle${{ matrix.guzzle }}-
 
       - name: Install dependencies
         run: |
           composer require "orchestra/testbench:${{ matrix.testbench }}" \
+                           "guzzlehttp/guzzle:${{ matrix.guzzle }}" \
                            --no-interaction --no-update
           composer update --no-interaction --prefer-dist --${{ matrix.stability }}
 
