@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.2.2...v1.3.0) (2026-09-04)
+
+
+### Features
+
+* add Guzzle 8 support ([6480482](https://github.com/schaefersoft/laravel-llms-txt/commit/6480482848d494e3a7c79546b1d298d78b9faff5))
+* add Guzzle 8 support ([9215c16](https://github.com/schaefersoft/laravel-llms-txt/commit/9215c168b7a1ebc5bd82e353fb1dc0a94a65ffbd))
+
 ## [1.2.2](https://github.com/schaefersoft/laravel-llms-txt/compare/v1.2.1...v1.2.2) (2026-08-25)
 
 
